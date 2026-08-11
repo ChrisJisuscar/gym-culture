@@ -37,6 +37,16 @@ Use the returned `refresh` value in the same way with `/api/auth/refresh/`:
 {"refresh":"<refresh-token>"}
 ```
 
+## Home V1
+
+The Home is served directly by Django at `/`. From `backend`, run:
+
+```powershell
+python manage.py runserver
+```
+
+Then open `http://127.0.0.1:8000/`. The New Drops section reads `/api/products/` when it is available and uses clearly separated temporary product data if the API has no products or cannot be reached.
+
 ## Validation
 
 Run these commands from `backend`:
