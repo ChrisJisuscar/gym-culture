@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block content %}
+{% include 'components/navbar.html' %}
+<main id="top">
+  {% include 'components/hero.html' %}
+  {% include 'components/culture.html' %}
+  {% include 'components/custom.html' %}
+  {% include 'components/brand.html' %}
+  {% include 'components/lookbook.html' %}
+  {% include 'components/community.html' %}
+  {% include 'components/newsletter.html' %}
+</main>
+{% include 'components/footer.html' %}
+{% endblock %}

@@ -8,8 +8,13 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 
+from .views import api_home, home
+
 
 urlpatterns = [
+    path('', home, name='home'),
+    path('api/', api_home, name='api-home'),
+
     path('admin/', admin.site.urls),
 
     path('api/', include('products.urls')),
