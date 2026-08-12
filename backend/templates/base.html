@@ -8,9 +8,11 @@
   <meta name="description" content="GYM CULTURE — Gym, anime, memes, urban culture y prendas personalizadas.">
   <title>{% block title %}GYM CULTURE — Built Different{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  {% block extra_css %}{% endblock %}
 </head>
 <body>
   {% block content %}{% endblock %}
   <script src="{% static 'js/main.js' %}" defer></script>
+  {% block extra_js %}{% endblock %}
 </body>
 </html>
