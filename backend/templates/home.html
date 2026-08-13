@@ -1,12 +1,12 @@
 {% extends 'base.html' %}
+{% load static %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/culture-overrides.css' %}"><link rel="stylesheet" href="{% static 'css/landing-overrides.css' %}">{% endblock %}
 {% block content %}
 {% include 'components/navbar.html' %}
 <main id="top">
   {% include 'components/hero.html' %}
   {% include 'components/culture.html' %}
   {% include 'components/custom.html' %}
-  {% include 'components/brand.html' %}
-  {% include 'components/lookbook.html' %}
   {% include 'components/community.html' %}
   {% include 'components/newsletter.html' %}
 </main>
