@@ -8,22 +8,21 @@
   max-width: 1250px;
   margin: auto;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  place-items: center;
   border: 1px solid var(--line);
   background: #100d18
 }
 
-.newsletter-panel,
 .instagram-panel {
+  width: min(100%, 780px);
+  min-width: 0;
   padding: 4.5rem;
-  min-width: 0
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2.5rem;
+  align-items: end
 }
 
-.newsletter-panel {
-  border-right: 1px solid var(--line)
-}
-
-.newsletter-panel h2,
 .instagram-panel h2 {
   font-size: clamp(3rem, 5.5vw, 5.5rem);
   letter-spacing: -.1em;
@@ -31,53 +30,43 @@
   margin: 1rem 0
 }
 
-.newsletter-panel h2 i,
 .instagram-panel h2 i {
   font-style: normal;
   color: var(--lavender)
 }
 
-.newsletter-panel>p:not(.eyebrow),
-.instagram-panel>div>p:not(.eyebrow) {
+.engagement-copy>p:not(.eyebrow) {
   color: var(--muted);
   margin: 0
 }
 
-.newsletter-panel form {
+.engagement-copy form {
   margin-top: 2.5rem;
   display: flex;
-  gap: .65rem;
-  flex-wrap: wrap
+  flex-wrap: wrap;
+  gap: .65rem
 }
 
-.newsletter-panel input {
-  background: transparent;
+.engagement-copy input {
+  min-width: 200px;
+  flex: 1;
+  padding: 1rem 0;
   border: 0;
   border-bottom: 1px solid var(--muted);
-  padding: 1rem 0;
-  flex: 1;
-  min-width: 200px;
+  background: transparent;
   color: var(--text);
   font: 500 .7rem 'DM Mono', monospace
 }
 
-.newsletter-panel input::placeholder {
+.engagement-copy input::placeholder {
   color: var(--muted)
 }
 
-.newsletter-panel .form-note {
+.engagement-copy .form-note {
   flex-basis: 100%;
-  font-size: .75rem;
+  margin: 0;
   color: var(--lavender);
-  margin: 0
-}
-
-.instagram-panel {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 2rem;
-  overflow: hidden
+  font-size: .75rem
 }
 
 .instagram-panel .text-link {
@@ -85,16 +74,15 @@
 }
 
 .instagram-preview {
-  align-self: end;
   width: 130px;
   aspect-ratio: 1;
-  border: 1px solid rgba(192, 132, 252, .35);
-  background: radial-gradient(circle at 70% 25%, rgba(124, 58, 237, .35), transparent 40%), #0a090f;
+  padding: 1rem;
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: 1rem;
-  position: relative
+  border: 1px solid rgba(192, 132, 252, .35);
+  background: radial-gradient(circle at 70% 25%, rgba(124, 58, 237, .35), transparent 40%), #0a090f
 }
 
 .instagram-preview:before {
@@ -111,47 +99,25 @@
 }
 
 .instagram-preview span {
+  color: var(--lavender);
   font-size: 2.8rem;
   font-weight: 800;
-  letter-spacing: -.16em;
-  color: var(--lavender)
+  letter-spacing: -.16em
 }
 
 .instagram-preview small {
-  font: .48rem 'DM Mono', monospace;
+  margin-top: .6rem;
   color: var(--muted);
-  margin-top: .6rem
+  font: .48rem 'DM Mono', monospace
 }
 
-@media(max-width:900px) {
+@media(max-width:760px) {
   .engagement-section {
-    padding: 5rem 5vw
-  }
-
-  .engagement-inner {
-    grid-template-columns: 1fr
-  }
-
-  .newsletter-panel,
-  .instagram-panel {
-    padding: 3rem
-  }
-
-  .newsletter-panel {
-    border-right: 0;
-    border-bottom: 1px solid var(--line)
+    padding: 5rem 1.25rem
   }
 
   .instagram-panel {
-    grid-template-columns: 1fr auto
-  }
-
-  .instagram-preview {
-    width: 96px
-  }
-
-  .newsletter-panel .button {
-    width: auto
+    padding: 3rem 1.5rem
   }
 }
 
@@ -160,29 +126,25 @@
     padding: 4rem 1.25rem
   }
 
-  .newsletter-panel,
   .instagram-panel {
-    padding: 2.5rem 1.25rem
+    padding: 2.5rem 1.25rem;
+    grid-template-columns: 1fr
   }
 
-  .newsletter-panel form {
+  .engagement-copy form {
     display: grid
   }
 
-  .newsletter-panel input {
+  .engagement-copy input {
     min-width: 0
   }
 
-  .newsletter-panel .button {
+  .engagement-copy .button {
     width: 100%;
     min-height: 44px
   }
 
-  .instagram-panel {
-    grid-template-columns: 1fr
-  }
-
   .instagram-preview {
-    justify-self: start
+    width: 96px
   }
 }

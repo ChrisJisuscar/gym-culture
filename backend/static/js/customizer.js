@@ -4,17 +4,29 @@ if (root) {
   const variants = JSON.parse(document.querySelector('#product-variants').textContent);
   const basePrice = Number(root.dataset.price) || 89000;
   const state = {
-    product: root.dataset.productId || null,
+    garment: 'tshirt',
     variant: {
       color: 'Negro',
       size: 'XL'
     },
     side: 'front',
-    front: {
-      elements: []
-    },
-    back: {
-      elements: []
+    garments: {
+      tshirt: {
+        front: {
+          elements: []
+        },
+        back: {
+          elements: []
+        }
+      },
+      hoodie: {
+        front: {
+          elements: []
+        },
+        back: {
+          elements: []
+        }
+      }
     },
     selectedId: null,
   };
@@ -23,22 +35,26 @@ if (root) {
   const safeArea = document.querySelector('#safe-area');
   const controls = document.querySelector('#element-controls');
   const empty = document.querySelector('#editor-empty');
+  const textControls = document.querySelector('#text-controls');
   const history = [];
   const future = [];
   const recoloredImages = new Map();
   let dragging = null;
 
-  const activeElements = () => state[state.side].elements;
+  const activeElements = () => state.garments[state.garment][state.side].elements;
   const selected = () => activeElements().find((item) => item.id === state.selectedId);
   const money = (value) => `Gs. ${Math.round(value).toLocaleString('es-PY')}`;
   // Conserva el estado serializado para las acciones de deshacer y rehacer.
   const snapshot = () => JSON.stringify({
-    front: state.front,
-    back: state.back,
+    garment: state.garment,
+    garments: state.garments,
     side: state.side,
     variant: state.variant
   });
-  const getShirtImageForSide = (side = state.side) => root.dataset[`${side}Image`] || root.dataset.frontImage;
+  const getGarmentImageForSide = (side = state.side) => {
+    const garment = `${state.garment}${side.charAt(0).toUpperCase()}${side.slice(1)}Image`;
+    return root.dataset[garment] || root.dataset.tshirtFrontImage;
+  };
 
   const save = () => {
     history.push(snapshot());
@@ -58,8 +74,11 @@ if (root) {
     document.querySelector('#summary-color').textContent = state.variant.color;
     document.querySelector('#summary-size').textContent = state.variant.size;
     document.querySelector('#summary-side').textContent = state.side === 'front' ? 'Frente' : 'Espalda';
+    document.querySelector('#summary-product').textContent = document.querySelector(`[data-garment="${state.garment}"]`).dataset.label;
+    document.querySelector('#summary-title').textContent = state.garment === 'hoodie' ? 'TU HOODIE' : 'TU REMERA';
     document.querySelector('#summary-design').textContent = element ? (element.type === 'text' ? element.content : 'Imagen personalizada') : 'Sin diseño';
-    const print = state.front.elements.length + state.back.elements.length ? 10000 : 0;
+    const activeGarment = state.garments[state.garment];
+    const print = activeGarment.front.elements.length + activeGarment.back.elements.length ? 10000 : 0;
     document.querySelector('#base-price').textContent = money(basePrice);
     document.querySelector('#design-price').textContent = money(print);
     document.querySelector('#total-price').textContent = money(basePrice + print);
@@ -77,6 +96,14 @@ if (root) {
   const updateColorButtons = () => {
     document.querySelectorAll('.color-option').forEach((button) => {
       const isActive = button.dataset.color === state.variant.color;
+      button.classList.toggle('is-selected', isActive);
+      button.setAttribute('aria-checked', String(isActive));
+    });
+  };
+
+  const updateGarmentButtons = () => {
+    document.querySelectorAll('[data-garment]').forEach((button) => {
+      const isActive = button.dataset.garment === state.garment;
       button.classList.toggle('is-selected', isActive);
       button.setAttribute('aria-checked', String(isActive));
     });
@@ -113,17 +140,21 @@ if (root) {
       node.addEventListener('pointerdown', startDrag);
       safeArea.append(node);
     });
-    controls.hidden = !selected();
+    const activeItem = selected();
+    controls.hidden = !activeItem;
+    textControls.hidden = activeItem?.type !== 'text';
+    if (activeItem?.type === 'text') document.querySelector('#text-content').value = activeItem.content;
     updateSummary();
   };
 
   // Genera una vista temporal de la prenda sin modificar la imagen original.
-  const recolorShirtImage = (source, color) => new Promise((resolve, reject) => {
-    if (color === 'Negro') {
+  const recolorShirtImage = (source, color, garment) => new Promise((resolve, reject) => {
+    if (color === 'Negro' && garment !== 'hoodie') {
       resolve(source);
       return;
     }
     const targetColors = {
+      Negro: [17, 16, 21],
       Blanco: [235, 233, 228],
       Gris: [122, 119, 128],
       Violeta: [124, 58, 237],
@@ -144,8 +175,12 @@ if (root) {
       const [red, green, blue] = targetColors[color];
       for (let index = 0; index < pixels.data.length; index += 4) {
         const luminance = (pixels.data[index] * .2126) + (pixels.data[index + 1] * .7152) + (pixels.data[index + 2] * .0722);
-        if (luminance < 138) {
-          const fabricLightness = .18 + (luminance / 138) * .82;
+        if (luminance < 12) continue;
+        const isHoodieFabric = garment === 'hoodie';
+        if (isHoodieFabric || luminance < 138) {
+          const fabricLightness = isHoodieFabric ?
+            .2 + (luminance / 255) * .8 :
+            .18 + (luminance / 138) * .82;
           pixels.data[index] = red * fabricLightness;
           pixels.data[index + 1] = green * fabricLightness;
           pixels.data[index + 2] = blue * fabricLightness;
@@ -159,27 +194,41 @@ if (root) {
   });
 
   const updateShirtImage = async () => {
-    const source = getShirtImageForSide();
+    const source = getGarmentImageForSide();
     const cacheKey = `${source}|${state.variant.color}`;
     const requestedSide = state.side;
     const requestedColor = state.variant.color;
+    const requestedGarment = state.garment;
     shirt.dataset.side = requestedSide;
-    shirtImage.alt = `Remera oversize ${requestedColor.toLowerCase()}, vista ${requestedSide === 'front' ? 'frontal' : 'trasera'}`;
+    shirt.dataset.garment = requestedGarment;
+    shirtImage.alt = `${requestedGarment === 'hoodie' ? 'Hoodie' : 'Remera oversize'} ${requestedColor.toLowerCase()}, vista ${requestedSide === 'front' ? 'frontal' : 'trasera'}`;
     try {
-      if (!recoloredImages.has(cacheKey)) recoloredImages.set(cacheKey, recolorShirtImage(source, requestedColor));
+      if (!recoloredImages.has(cacheKey)) recoloredImages.set(cacheKey, recolorShirtImage(source, requestedColor, requestedGarment));
       const renderedImage = await recoloredImages.get(cacheKey);
-      if (state.side === requestedSide && state.variant.color === requestedColor) shirtImage.src = renderedImage;
+      if (state.side === requestedSide && state.variant.color === requestedColor && state.garment === requestedGarment) shirtImage.src = renderedImage;
     } catch {
-      if (state.side === requestedSide && state.variant.color === requestedColor) shirtImage.src = source;
+      if (state.side === requestedSide && state.variant.color === requestedColor && state.garment === requestedGarment) shirtImage.src = source;
     }
   };
 
   const updateStock = () => {
-    if (!variants.length) return;
     document.querySelectorAll('.size-option').forEach((button) => {
-      const available = variants.some((variant) => variant.size === button.dataset.size && variant.stock > 0 && (!variant.color || variant.color.toLowerCase() === state.variant.color.toLowerCase()));
-      button.disabled = !available;
+      const available = !variants.length || variants.some((variant) => variant.size === button.dataset.size && variant.stock > 0 && (!variant.color || variant.color.toLowerCase() === state.variant.color.toLowerCase()));
+      button.classList.toggle('is-out-of-stock', !available);
+      button.setAttribute('aria-disabled', String(!available));
     });
+  };
+
+  const updateStockMessage = () => {
+    const selectedSize = document.querySelector(`.size-option[data-size="${state.variant.size}"]`);
+    const message = document.querySelector('#stock-note');
+    if (selectedSize?.classList.contains('is-out-of-stock')) {
+      message.textContent = 'No hay stock de este tamaño o color, pero te avisaremos cuando esté disponible.';
+      message.classList.add('is-error');
+      return;
+    }
+    message.textContent = 'Tamaño disponible para continuar.';
+    message.classList.remove('is-error');
   };
 
   const setSide = (side, recordHistory = true) => {
@@ -192,12 +241,23 @@ if (root) {
     render();
   };
 
+  const setGarment = (garment) => {
+    if (garment === state.garment) return;
+    save();
+    state.garment = garment;
+    state.selectedId = null;
+    updateGarmentButtons();
+    updateShirtImage();
+    render();
+  };
+
   const setColor = (color, recordHistory = true) => {
     if (color === state.variant.color) return;
     if (recordHistory) save();
     state.variant.color = color;
     updateColorButtons();
     updateStock();
+    updateStockMessage();
     updateShirtImage();
     updateSummary();
   };
@@ -222,6 +282,8 @@ if (root) {
     if (!item) return;
     save();
     state.selectedId = item.id;
+    textControls.hidden = item.type !== 'text';
+    if (item.type === 'text') document.querySelector('#text-content').value = item.content;
     dragging = {
       item,
       startX: event.clientX,
@@ -246,11 +308,17 @@ if (root) {
   });
 
   document.querySelectorAll('.color-option').forEach((button) => button.addEventListener('click', () => setColor(button.dataset.color)));
+  document.querySelectorAll('[data-garment]').forEach((button) => button.addEventListener('click', () => setGarment(button.dataset.garment)));
   document.querySelectorAll('.size-option').forEach((button) => button.addEventListener('click', () => {
-    if (button.disabled || button.dataset.size === state.variant.size) return;
+    if (button.dataset.size === state.variant.size) return;
     save();
     state.variant.size = button.dataset.size;
-    document.querySelectorAll('.size-option').forEach((item) => item.classList.toggle('is-selected', item === button));
+    document.querySelectorAll('.size-option').forEach((item) => {
+      const isActive = item === button;
+      item.classList.toggle('is-selected', isActive);
+      item.setAttribute('aria-checked', String(isActive));
+    });
+    updateStockMessage();
     updateSummary();
   }));
   document.querySelectorAll('.side-switch button').forEach((button) => button.addEventListener('click', () => setSide(button.dataset.side)));
@@ -282,7 +350,6 @@ if (root) {
     reader.readAsDataURL(file);
   });
 
-  const textControls = document.querySelector('#text-controls');
   document.querySelector('#add-text').addEventListener('click', () => {
     add({
       type: 'text',
@@ -333,19 +400,15 @@ if (root) {
     if (!item || !action) return;
     save();
     if (action === 'delete') {
-      state[state.side].elements = activeElements().filter((entry) => entry.id !== item.id);
+      state.garments[state.garment][state.side].elements = activeElements().filter((entry) => entry.id !== item.id);
       state.selectedId = null;
     }
     if (action === 'rotate-left') item.rotation -= 15;
     if (action === 'rotate-right') item.rotation += 15;
-    if (action === 'grow') {
-      item.width *= 1.12;
-      item.height *= 1.12;
-    }
-    if (action === 'shrink') {
-      item.width *= .88;
-      item.height *= .88;
-    }
+    if (action === 'grow-width') item.width *= 1.12;
+    if (action === 'shrink-width') item.width *= .88;
+    if (action === 'grow-height') item.height *= 1.12;
+    if (action === 'shrink-height') item.height *= .88;
     clamp(item);
     render();
   });
@@ -355,8 +418,10 @@ if (root) {
       selectedId: null
     });
     updateSideButtons();
+    updateGarmentButtons();
     updateColorButtons();
     updateStock();
+    updateStockMessage();
     updateShirtImage();
     render();
   };
@@ -390,7 +455,9 @@ if (root) {
 
   updateStock();
   updateSideButtons();
+  updateGarmentButtons();
   updateColorButtons();
+  updateStockMessage();
   updateShirtImage();
   render();
 }

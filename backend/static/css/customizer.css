@@ -103,16 +103,25 @@
   margin: 0 0 .85rem
 }
 
+.garment-options {
+  display: grid;
+  gap: .5rem
+}
+
 .garment-option {
   display: flex;
   align-items: center;
   gap: .8rem;
   width: 100%;
   padding: .65rem;
-  border: 1px solid var(--lavender);
+  border: 1px solid var(--line);
   background: #171222;
   color: var(--text);
   text-align: left
+}
+
+.garment-option.is-selected {
+  border-color: var(--lavender)
 }
 
 .garment-icon {
@@ -188,10 +197,10 @@
   background: #24113f
 }
 
-.size-option:disabled {
-  opacity: .3;
-  text-decoration: line-through;
-  cursor: not-allowed
+.size-option.is-out-of-stock {
+  border-style: dashed;
+  border-color: rgba(239, 139, 154, .7);
+  color: #ef8b9a
 }
 
 .design-actions {
@@ -446,6 +455,7 @@
   display: flex;
   gap: .45rem;
   align-items: center;
+  flex-wrap: wrap;
   margin: 1rem 0
 }
 

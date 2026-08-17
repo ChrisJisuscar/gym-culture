@@ -8,32 +8,55 @@
   {% include 'components/navbar.html' %}
   <main class="customizer-page">
     <header class="customizer-intro">
-      <p class="eyebrow">CUSTOM LAB / V1</p>
-      <h1>CREÁ TU <i>REMERA.</i></h1>
-      <p>Personalizá tu remera y hacela única.</p>
+      <p class="eyebrow">CUSTOM LAB</p>
+      <h1>CREÁ TU <i>ESTILO.</i></h1>
+      <p>Personalizá tu prenda y hacela única.</p>
     </header>
-    <ol class="steps" aria-label="Pasos de personalización">
-      <li class="is-current">01 <span>PRENDA</span></li>
-      <li>02 <span>COLOR</span></li>
-      <li>03 <span>TALLA</span></li>
-      <li>04 <span>DISEÑO</span></li>
-      <li>05 <span>FINALIZAR</span></li>
-    </ol>
     <div
       class="customizer-layout"
       data-product-id="{{ product.id|default:'' }}"
       data-price="{{ product.price|default:'89000' }}"
-      data-front-image="{% get_media_prefix %}products/camiseta-oversize-basica-inbasik-negro-07.webp"
-      data-back-image=""
+      data-tshirt-front-image="{% get_media_prefix %}products/camiseta-oversize-basica-inbasik-negro-07.webp"
+      data-tshirt-back-image="{% get_media_prefix %}products/camiseta-oversize-basica-inbasik-negro-07.webp"
+      data-hoodie-front-image="{% static 'images/customizer/hoodie-front.jpg' %}"
+      data-hoodie-back-image="{% static 'images/customizer/hoodie-back.jpg' %}"
     >
       <aside class="config-panel panel">
         <div class="panel-title">
-          <span>01</span>
-          <h2>CONFIGURACIÓN</h2>
+          <h2>EDITOR</h2>
         </div>
         <section>
           <h3>PRENDA</h3>
-          <button class="garment-option is-selected" type="button"><span class="garment-icon">GC</span><span><b>{{ product.name|default:'Remera Oversize' }}</b><small>Fit amplio · algodón premium</small></span></button>
+          <div class="garment-options" role="radiogroup" aria-label="Tipo de prenda">
+            <button
+              class="garment-option is-selected"
+              type="button"
+              data-garment="tshirt"
+              data-label="{{ product.name|default:'Remera Oversize' }}"
+              role="radio"
+              aria-checked="true"
+            >
+              <span class="garment-icon">GC</span>
+              <span>
+                <b>{{ product.name|default:'Remera Oversize' }}</b>
+                <small>Amplio · algodón premium</small>
+              </span>
+            </button>
+            <button
+              class="garment-option"
+              type="button"
+              data-garment="hoodie"
+              data-label="Hoodie"
+              role="radio"
+              aria-checked="false"
+            >
+              <span class="garment-icon">GC</span>
+              <span>
+                <b>Hoodie</b>
+                <small>Frente y espalda personalizables</small>
+              </span>
+            </button>
+          </div>
         </section>
         <section>
           <h3>COLOR</h3>
@@ -156,14 +179,21 @@
           </div>
         </div>
         <div class="element-controls" id="element-controls" hidden>
-          <span>ELEMENTO SELECCIONADO</span><button type="button" data-action="rotate-left">↶</button><button type="button" data-action="rotate-right">↷</button><button type="button" data-action="shrink">−</button><button type="button" data-action="grow">+</button><button type="button" data-action="delete">ELIMINAR</button>
+          <span>ELEMENTO SELECCIONADO</span>
+          <button type="button" data-action="rotate-left">↶</button>
+          <button type="button" data-action="rotate-right">↷</button>
+          <button type="button" data-action="shrink-width">ANCHO −</button>
+          <button type="button" data-action="grow-width">ANCHO +</button>
+          <button type="button" data-action="shrink-height">ALTO −</button>
+          <button type="button" data-action="grow-height">ALTO +</button>
+          <button type="button" data-action="delete">ELIMINAR</button>
         </div>
         <button type="button" class="preview-button" id="preview-button">VER VISTA PREVIA ↗</button>
       </section>
       <aside class="summary-panel panel">
         <div class="panel-title">
           <span>03</span>
-          <h2>TU REMERA</h2>
+          <h2 id="summary-title">TU REMERA</h2>
         </div>
         <dl>
           <div>

@@ -691,6 +691,10 @@ input {
   font-size: clamp(3.8rem, 7vw, 7.4rem)
 }
 
+.custom-copy .eyebrow {
+    margin-bottom: 25px;
+}
+
 .lead {
   font-size: 1.18rem;
   line-height: 1.4;
