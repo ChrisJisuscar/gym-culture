@@ -1,1 +1,113 @@
-.desktop-nav a{display:inline-flex;align-items:center;gap:.42rem}.desktop-nav svg,.nav-actions svg,.button svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.icon-button{display:grid;place-items:center}.icon-button svg{width:19px;height:19px}.cart-button{display:inline-flex;align-items:center;gap:.35rem}.cart-button svg{width:18px;height:18px}.button svg{transition:transform .2s}.button:hover svg{transform:translate(2px,-2px)}.culture-card{cursor:default}.culture-card .card-index,.culture-urban:before,.culture-urban:after,.urban-tag{display:none}.culture-memes .culture-photo{background-size:cover;background-position:center 33%}.culture-memes .meme-copy{z-index:2}.culture-urban .culture-photo{background-size:cover;background-position:center;filter:grayscale(.45) contrast(1.08) brightness(.62)}.custom-art{display:grid;place-items:center;padding:4rem 3.5rem;background:radial-gradient(circle at 50% 46%,rgba(124,58,237,.17),transparent 60%),#0d0b13}.custom-art:before,.custom-mark,.custom-grid,.custom-art p{display:none}.custom-art img{position:relative;z-index:1;display:block;width:min(100%,980px);height:auto;border:1px solid rgba(192,132,252,.24);border-radius:10px;box-shadow:0 22px 50px rgba(0,0,0,.45),0 0 34px rgba(124,58,237,.12);transform:perspective(1200px) rotateY(4deg) rotateX(1.5deg)}@media(max-width:760px){.custom-art{padding:2rem 1.25rem;min-height:auto}.custom-art img{transform:none}.desktop-nav svg{display:none}}
+.desktop-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: .42rem
+}
+
+.desktop-nav svg,
+.nav-actions svg,
+.button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round
+}
+
+.icon-button {
+  display: grid;
+  place-items: center
+}
+
+.icon-button svg {
+  width: 19px;
+  height: 19px
+}
+
+.cart-button {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem
+}
+
+.cart-button svg {
+  width: 18px;
+  height: 18px
+}
+
+.button svg {
+  transition: transform .2s
+}
+
+.button:hover svg {
+  transform: translate(2px, -2px)
+}
+
+.culture-card {
+  cursor: default
+}
+
+.culture-card .card-index,
+.culture-urban:before,
+.culture-urban:after,
+.urban-tag {
+  display: none
+}
+
+.culture-memes .culture-photo {
+  background-size: cover;
+  background-position: center 33%
+}
+
+.culture-memes .meme-copy {
+  z-index: 2
+}
+
+.culture-urban .culture-photo {
+  background-size: cover;
+  background-position: center;
+  filter: grayscale(.45) contrast(1.08) brightness(.62)
+}
+
+.custom-art {
+  display: grid;
+  place-items: center;
+  padding: 4rem 3.5rem;
+  background: radial-gradient(circle at 50% 46%, rgba(124, 58, 237, .17), transparent 60%), #0d0b13
+}
+
+.custom-art:before,
+.custom-mark,
+.custom-grid,
+.custom-art p {
+  display: none
+}
+
+.custom-art img {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: min(100%, 980px);
+  height: auto;
+  border: 1px solid rgba(192, 132, 252, .24);
+  border-radius: 10px;
+  box-shadow: 0 22px 50px rgba(0, 0, 0, .45), 0 0 34px rgba(124, 58, 237, .12);
+  transform: perspective(1200px) rotateY(4deg) rotateX(1.5deg)
+}
+
+@media(max-width:760px) {
+  .custom-art {
+    padding: 2rem 1.25rem;
+    min-height: auto
+  }
+
+  .custom-art img {
+    transform: none
+  }
+
+  .desktop-nav svg {
+    display: none
+  }
+}

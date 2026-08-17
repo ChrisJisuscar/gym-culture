@@ -23,15 +23,25 @@ const updateNavigation = () => {
   ), null);
   navLinks.forEach((link) => link.classList.toggle('is-active', link.getAttribute('href') === `#${active?.id}`));
 };
-window.addEventListener('scroll', updateNavigation, { passive: true });
+window.addEventListener('scroll', updateNavigation, {
+  passive: true
+});
 updateNavigation();
 
 const revealItems = document.querySelectorAll('.section, .custom-section, .brand-section, .community, .newsletter');
 if ('IntersectionObserver' in window) {
   revealItems.forEach((item) => item.classList.add('reveal'));
-  const observer = new IntersectionObserver((entries) => entries.forEach(({ isIntersecting, target }) => {
-    if (isIntersecting) { target.classList.add('is-visible'); observer.unobserve(target); }
-  }), { threshold: .08 });
+  const observer = new IntersectionObserver((entries) => entries.forEach(({
+    isIntersecting,
+    target
+  }) => {
+    if (isIntersecting) {
+      target.classList.add('is-visible');
+      observer.unobserve(target);
+    }
+  }), {
+    threshold: .08
+  });
   revealItems.forEach((item) => observer.observe(item));
 }
 

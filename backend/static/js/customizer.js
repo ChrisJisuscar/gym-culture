@@ -5,10 +5,17 @@ if (root) {
   const basePrice = Number(root.dataset.price) || 89000;
   const state = {
     product: root.dataset.productId || null,
-    variant: { color: 'Negro', size: 'XL' },
+    variant: {
+      color: 'Negro',
+      size: 'XL'
+    },
     side: 'front',
-    front: { elements: [] },
-    back: { elements: [] },
+    front: {
+      elements: []
+    },
+    back: {
+      elements: []
+    },
     selectedId: null,
   };
   const shirt = document.querySelector('#shirt');
@@ -24,7 +31,13 @@ if (root) {
   const activeElements = () => state[state.side].elements;
   const selected = () => activeElements().find((item) => item.id === state.selectedId);
   const money = (value) => `Gs. ${Math.round(value).toLocaleString('es-PY')}`;
-  const snapshot = () => JSON.stringify({ front: state.front, back: state.back, side: state.side, variant: state.variant });
+  // Conserva el estado serializado para las acciones de deshacer y rehacer.
+  const snapshot = () => JSON.stringify({
+    front: state.front,
+    back: state.back,
+    side: state.side,
+    variant: state.variant
+  });
   const getShirtImageForSide = (side = state.side) => root.dataset[`${side}Image`] || root.dataset.frontImage;
 
   const save = () => {
@@ -69,6 +82,7 @@ if (root) {
     });
   };
 
+  // Mantiene cada diseño dentro del área segura de impresión.
   const clamp = (item) => {
     item.width = Math.max(12, Math.min(90, item.width));
     item.height = Math.max(8, Math.min(72, item.height));
@@ -103,21 +117,28 @@ if (root) {
     updateSummary();
   };
 
+  // Genera una vista temporal de la prenda sin modificar la imagen original.
   const recolorShirtImage = (source, color) => new Promise((resolve, reject) => {
     if (color === 'Negro') {
       resolve(source);
       return;
     }
     const targetColors = {
-      Blanco: [235, 233, 228], Gris: [122, 119, 128], Violeta: [124, 58, 237],
-      'Azul oscuro': [24, 34, 56], Rojo: [159, 35, 61], 'Verde oscuro': [25, 56, 46],
+      Blanco: [235, 233, 228],
+      Gris: [122, 119, 128],
+      Violeta: [124, 58, 237],
+      'Azul oscuro': [24, 34, 56],
+      Rojo: [159, 35, 61],
+      'Verde oscuro': [25, 56, 46],
     };
     const image = new Image();
     image.onload = () => {
       const canvas = document.createElement('canvas');
       canvas.width = image.naturalWidth;
       canvas.height = image.naturalHeight;
-      const context = canvas.getContext('2d', { willReadFrequently: true });
+      const context = canvas.getContext('2d', {
+        willReadFrequently: true
+      });
       context.drawImage(image, 0, 0);
       const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
       const [red, green, blue] = targetColors[color];
@@ -183,7 +204,15 @@ if (root) {
 
   const add = (item) => {
     save();
-    activeElements().push({ id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), x: 50, y: 50, width: 40, height: 25, rotation: 0, ...item });
+    activeElements().push({
+      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      x: 50,
+      y: 50,
+      width: 40,
+      height: 25,
+      rotation: 0,
+      ...item
+    });
     state.selectedId = activeElements().at(-1).id;
     render();
   };
@@ -193,7 +222,13 @@ if (root) {
     if (!item) return;
     save();
     state.selectedId = item.id;
-    dragging = { item, startX: event.clientX, startY: event.clientY, x: item.x, y: item.y };
+    dragging = {
+      item,
+      startX: event.clientX,
+      startY: event.clientY,
+      x: item.x,
+      y: item.y
+    };
     event.currentTarget.setPointerCapture(event.pointerId);
     render();
   };
@@ -206,7 +241,9 @@ if (root) {
     clamp(dragging.item);
     render();
   });
-  safeArea.addEventListener('pointerup', () => { dragging = null; });
+  safeArea.addEventListener('pointerup', () => {
+    dragging = null;
+  });
 
   document.querySelectorAll('.color-option').forEach((button) => button.addEventListener('click', () => setColor(button.dataset.color)));
   document.querySelectorAll('.size-option').forEach((button) => button.addEventListener('click', () => {
@@ -233,7 +270,12 @@ if (root) {
       image.onload = () => {
         message.className = 'editor-message';
         message.textContent = image.width < 900 || image.height < 900 ? 'Calidad insuficiente. La imagen podría verse pixelada al imprimir.' : 'Imagen agregada correctamente.';
-        add({ type: 'image', content: reader.result, width: 42, height: 42 });
+        add({
+          type: 'image',
+          content: reader.result,
+          width: 42,
+          height: 42
+        });
       };
       image.src = reader.result;
     };
@@ -242,7 +284,14 @@ if (root) {
 
   const textControls = document.querySelector('#text-controls');
   document.querySelector('#add-text').addEventListener('click', () => {
-    add({ type: 'text', content: 'GYM CULTURE', width: 55, height: 18, font: 'Outfit', bold: true });
+    add({
+      type: 'text',
+      content: 'GYM CULTURE',
+      width: 55,
+      height: 18,
+      font: 'Outfit',
+      bold: true
+    });
     textControls.hidden = false;
   });
   document.querySelector('#text-content').addEventListener('input', (event) => {
@@ -254,14 +303,27 @@ if (root) {
   });
   document.querySelectorAll('[data-font]').forEach((button) => button.addEventListener('click', () => {
     const item = selected();
-    if (item?.type === 'text') { item.font = button.dataset.font; render(); }
+    if (item?.type === 'text') {
+      item.font = button.dataset.font;
+      render();
+    }
   }));
   document.querySelector('#text-bold').addEventListener('click', () => {
     const item = selected();
-    if (item?.type === 'text') { item.bold = !item.bold; render(); }
+    if (item?.type === 'text') {
+      item.bold = !item.bold;
+      render();
+    }
   });
   document.querySelectorAll('.preset').forEach((button) => button.addEventListener('click', () => {
-    add({ type: 'text', content: button.dataset.preset.replace('\\n', '\n'), width: 56, height: 26, font: 'Outfit', bold: true });
+    add({
+      type: 'text',
+      content: button.dataset.preset.replace('\\n', '\n'),
+      width: 56,
+      height: 26,
+      font: 'Outfit',
+      bold: true
+    });
     textControls.hidden = false;
   }));
 
@@ -270,17 +332,28 @@ if (root) {
     const action = event.target.dataset.action;
     if (!item || !action) return;
     save();
-    if (action === 'delete') { state[state.side].elements = activeElements().filter((entry) => entry.id !== item.id); state.selectedId = null; }
+    if (action === 'delete') {
+      state[state.side].elements = activeElements().filter((entry) => entry.id !== item.id);
+      state.selectedId = null;
+    }
     if (action === 'rotate-left') item.rotation -= 15;
     if (action === 'rotate-right') item.rotation += 15;
-    if (action === 'grow') { item.width *= 1.12; item.height *= 1.12; }
-    if (action === 'shrink') { item.width *= .88; item.height *= .88; }
+    if (action === 'grow') {
+      item.width *= 1.12;
+      item.height *= 1.12;
+    }
+    if (action === 'shrink') {
+      item.width *= .88;
+      item.height *= .88;
+    }
     clamp(item);
     render();
   });
 
   const restoreSnapshot = (nextState) => {
-    Object.assign(state, nextState, { selectedId: null });
+    Object.assign(state, nextState, {
+      selectedId: null
+    });
     updateSideButtons();
     updateColorButtons();
     updateStock();
