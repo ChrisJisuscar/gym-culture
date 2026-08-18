@@ -104,25 +104,39 @@
 }
 
 .garment-options {
-  display: grid;
-  gap: .5rem
+  display: flex;
+  justify-content: center;
+  gap: .65rem
 }
 
 .garment-option {
   display: flex;
   align-items: center;
   gap: .8rem;
-  width: 100%;
-  padding: .65rem;
+  flex: 0 1 270px;
+  padding: .72rem .82rem;
   border: 1px solid var(--line);
   background: #171222;
   color: var(--text);
-  text-align: left
+  text-align: left;
+  cursor: pointer;
+  transition: transform .28s cubic-bezier(.2,.8,.2,1), border-color .28s ease, background .28s ease, box-shadow .28s ease
 }
 
 .garment-option.is-selected {
-  border-color: var(--lavender)
+  border-color: var(--lavender);
+  background: linear-gradient(135deg, #24113f, #171222);
+  box-shadow: 0 10px 28px rgba(122, 58, 237, .18)
 }
+
+.garment-option:hover,
+.garment-option:focus-visible {
+  transform: translateY(-3px);
+  border-color: var(--lavender);
+  outline: 0
+}
+
+.garment-section { display: none }
 
 .garment-icon {
   display: grid;
@@ -282,6 +296,17 @@
   flex-direction: column
 }
 
+.garment-picker {
+  width: min(100%, 620px);
+  margin: -.2rem auto 1.45rem;
+  text-align: center
+}
+
+.garment-picker .eyebrow {
+  margin: 0 0 .7rem;
+  color: var(--muted)
+}
+
 .editor-top {
   display: flex;
   justify-content: space-between;
@@ -348,13 +373,20 @@
   isolation: isolate
 }
 
+.shirt[data-garment="hoodie"] .safe-area {
+  left: 30%;
+  top: 27%;
+  width: 40%;
+  height: 45%
+}
+
 .shirt-image {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
   filter: var(--shirt-filter, none);
-  transition: filter .25s ease
+  transition: filter .25s ease, transform .35s cubic-bezier(.2,.8,.2,1)
 }
 
 .shirt[data-color="Blanco"] {
@@ -649,6 +681,15 @@
     min-height: 610px
   }
 
+  .garment-picker { margin-bottom: 1.2rem }
+
+  .garment-options { gap: .45rem }
+
+  .garment-option {
+    min-width: 0;
+    padding: .62rem
+  }
+
   .summary-panel {
     order: 3;
     display: block
@@ -734,6 +775,10 @@
   .shirt {
     width: 100%
   }
+
+  .garment-option { align-items: flex-start }
+
+  .garment-option small { line-height: 1.25 }
 
   .safe-label {
     font-size: .4rem

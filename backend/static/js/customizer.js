@@ -177,7 +177,7 @@ if (root) {
         const luminance = (pixels.data[index] * .2126) + (pixels.data[index + 1] * .7152) + (pixels.data[index + 2] * .0722);
         if (luminance < 12) continue;
         const isHoodieFabric = garment === 'hoodie';
-        if (isHoodieFabric || luminance < 138) {
+        if (isHoodieFabric ? luminance < 170 : luminance < 138) {
           const fabricLightness = isHoodieFabric ?
             .2 + (luminance / 255) * .8 :
             .18 + (luminance / 138) * .82;
@@ -360,6 +360,11 @@ if (root) {
       bold: true
     });
     textControls.hidden = false;
+    requestAnimationFrame(() => {
+      const input = document.querySelector('#text-content');
+      input.focus();
+      input.select();
+    });
   });
   document.querySelector('#text-content').addEventListener('input', (event) => {
     const item = selected();
@@ -392,6 +397,11 @@ if (root) {
       bold: true
     });
     textControls.hidden = false;
+    requestAnimationFrame(() => {
+      const input = document.querySelector('#text-content');
+      input.focus();
+      input.select();
+    });
   }));
 
   controls.addEventListener('click', (event) => {

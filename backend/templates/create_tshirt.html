@@ -16,8 +16,8 @@
       class="customizer-layout"
       data-product-id="{{ product.id|default:'' }}"
       data-price="{{ product.price|default:'89000' }}"
-      data-tshirt-front-image="{% get_media_prefix %}products/camiseta-oversize-basica-inbasik-negro-07.webp"
-      data-tshirt-back-image="{% get_media_prefix %}products/camiseta-oversize-basica-inbasik-negro-07.webp"
+      data-tshirt-front-image="{% static 'images/customizer/tshirt-front.jpg' %}"
+      data-tshirt-back-image="{% static 'images/customizer/tshirt-back.jpg' %}"
       data-hoodie-front-image="{% static 'images/customizer/hoodie-front.jpg' %}"
       data-hoodie-back-image="{% static 'images/customizer/hoodie-back.jpg' %}"
     >
@@ -25,7 +25,7 @@
         <div class="panel-title">
           <h2>EDITOR</h2>
         </div>
-        <section>
+        <section class="garment-section">
           <h3>PRENDA</h3>
           <div class="garment-options" role="radiogroup" aria-label="Tipo de prenda">
             <button
@@ -135,7 +135,7 @@
           </div>
         </section>
         <section>
-          <h3>PRESETS</h3>
+          <h3>AGREGAR TEXTO</h3>
           <div class="preset-grid">
             <button type="button" class="preset" data-preset="BUILT\nDIFFERENT">
               BUILT
@@ -149,11 +149,18 @@
               GYM
               <br>
               CULTURE
-            </button>
+            </button><button type="button" class="preset" data-preset="NO PAIN NO GAIN">NO PAIN<br>NO GAIN</button><button type="button" class="preset" data-preset="STAY HARD">STAY HARD</button><button type="button" class="preset" data-preset="DISCIPLINE OVER MOTIVATION">DISCIPLINE OVER<br>MOTIVATION</button>
           </div>
         </section>
       </aside>
       <section class="editor-panel panel">
+        <div class="garment-picker">
+          <p class="eyebrow">ELEGÍ TU PRENDA</p>
+          <div class="garment-options" role="radiogroup" aria-label="Tipo de prenda">
+            <button class="garment-option is-selected" type="button" data-garment="tshirt" data-label="{{ product.name|default:'Remera Oversize' }}" role="radio" aria-checked="true"><span class="garment-icon">GC</span><span><b>{{ product.name|default:'Remera Oversize' }}</b><small>Amplio · algodón premium</small></span></button>
+            <button class="garment-option" type="button" data-garment="hoodie" data-label="Hoodie" role="radio" aria-checked="false"><span class="garment-icon">GC</span><span><b>Hoodie</b><small>Frente y espalda personalizables</small></span></button>
+          </div>
+        </div>
         <div class="editor-top">
           <div>
             <span class="eyebrow">PERSONALIZADOR 2D</span>
