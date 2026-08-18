@@ -149,7 +149,9 @@ if (root) {
 
   // Genera una vista temporal de la prenda sin modificar la imagen original.
   const recolorShirtImage = (source, color, garment) => new Promise((resolve, reject) => {
-    if (color === 'Negro' && garment !== 'hoodie') {
+    // El mockup negro ya contiene los pliegues y la textura de la prenda.
+    // Se usa directamente para no oscurecerlo durante el recoloreado por canvas.
+    if (color === 'Negro') {
       resolve(source);
       return;
     }

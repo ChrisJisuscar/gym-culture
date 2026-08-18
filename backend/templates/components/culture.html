@@ -1,14 +1,18 @@
 {% load static %}
-<section id="culture" class="section culture-section"><div class="section-heading"><div><h2>ELEGÍ TU<br><i>CULTURA.</i></h2></div></div><div class="culture-grid"><article
-  class="culture-card culture-gymrat"
-  style="--culture-image: url('{% static 'images/culture/gymrat.jpg' %}')"
-><div class="culture-photo" aria-hidden="true"></div><div class="card-copy"><h3>GYMRAT</h3><p>Ser gymrat no es una moda,<br>es una obsesión.</p></div></article><article
-  class="culture-card culture-anime"
-  style="--culture-image: url('{% static 'images/culture/toji-gym.jpg' %}')"
-><div class="culture-photo" role="img" aria-label="Toji entrenando en el gimnasio"></div><div class="card-copy"><h3>ANIME</h3><p>Entrená como si tu historia<br>dependiera de ello.</p></div></article><article
-  class="culture-card culture-memes"
-  style="--culture-image: url('{% static 'images/culture/monalisa-musculosa.jpg' %}')"
-><div class="culture-photo" role="img" aria-label="Mona Lisa musculosa con batido"></div><div class="card-copy"><h3>MEMES</h3></div></article><article
-  class="culture-card culture-urban"
-  style="--culture-image: url('{% static 'images/culture/hoodie-urbano.webp' %}')"
-><div class="culture-photo" role="img" aria-label="Hoodie urbano con diseño gráfico"></div><div class="card-copy"><h3>URBANO</h3><p>La calle también enseña.</p></div></article></div></section>
+<section id="culture" class="section culture-section">
+  <div class="section-heading"><div><h2>ELEG&Iacute; TU<br><i>CULTURA.</i></h2></div></div>
+  <div class="culture-grid">
+    <a href="{% url 'create-tshirt' %}?culture=gymrat" class="culture-card culture-gymrat" style="--culture-image: url('{% static 'images/culture/gymrat.jpg' %}')">
+      <div class="culture-photo" aria-hidden="true"></div><div class="card-copy"><h3>GYMRAT</h3><p>Ser gymrat no es una moda,<br>es una obsesi&oacute;n.</p></div>
+    </a>
+    <a href="{% url 'create-tshirt' %}?culture=anime" class="culture-card culture-anime" style="--culture-image: url('{% static 'images/culture/toji-gym.jpg' %}')">
+      <div class="culture-photo" role="img" aria-label="Guerrero anime entrenando"></div><div class="card-copy"><h3>ANIME</h3><p>Entren&aacute; como si tu historia<br>dependiera de ello.</p></div>
+    </a>
+    <a href="{% url 'create-tshirt' %}?culture=memes" class="culture-card culture-memes" style="--culture-image: url('{% static 'images/culture/monalisa-musculosa.jpg' %}')">
+      <div class="culture-photo" role="img" aria-label="Mona Lisa musculosa con batido"></div><div class="card-copy"><h3>MEMES</h3></div>
+    </a>
+    <a href="{% url 'create-tshirt' %}?culture=urban" class="culture-card culture-urban" style="--culture-image: url('{% static 'images/culture/hoodie-urbano.webp' %}')">
+      <div class="culture-photo" role="img" aria-label="Hoodie urbano con dise&ntilde;o gr&aacute;fico"></div><div class="card-copy"><h3>URBANO</h3><p>La calle tambi&eacute;n ense&ntilde;a.</p></div>
+    </a>
+  </div>
+</section>

@@ -373,11 +373,27 @@
   isolation: isolate
 }
 
-.shirt[data-garment="hoodie"] .safe-area {
-  left: 30%;
-  top: 27%;
-  width: 40%;
-  height: 45%
+/* El área toma todo el torso: deja fuera mangas y cuello, pero llega al ruedo. */
+.shirt[data-garment="tshirt"] .safe-area {
+  left: 26%;
+  top: 28%;
+  width: 48%;
+  height: 60%
+}
+
+/* En el frente se permite imprimir también sobre el bolsillo canguro. */
+.shirt[data-garment="hoodie"][data-side="front"] .safe-area {
+  left: 26%;
+  top: 28%;
+  width: 48%;
+  height: 60%
+}
+
+.shirt[data-garment="hoodie"][data-side="back"] .safe-area {
+  left: 26%;
+  top: 28%;
+  width: 48%;
+  height: 60%
 }
 
 .shirt-image {
@@ -389,36 +405,36 @@
   transition: filter .25s ease, transform .35s cubic-bezier(.2,.8,.2,1)
 }
 
-.shirt[data-color="Blanco"] {
+.shirt[data-garment="tshirt"][data-color="Blanco"] {
   --shirt-filter: invert(1) grayscale(1) brightness(1.12) contrast(.72)
 }
 
-.shirt[data-color="Gris"] {
+.shirt[data-garment="tshirt"][data-color="Gris"] {
   --shirt-filter: invert(.82) grayscale(1) brightness(.78) contrast(.85)
 }
 
-.shirt[data-color="Violeta"] {
+.shirt[data-garment="tshirt"][data-color="Violeta"] {
   --shirt-filter: invert(.72) sepia(.75) saturate(5) hue-rotate(222deg) brightness(.62)
 }
 
-.shirt[data-color="Azul oscuro"] {
+.shirt[data-garment="tshirt"][data-color="Azul oscuro"] {
   --shirt-filter: invert(.35) sepia(.9) saturate(3) hue-rotate(175deg) brightness(.5)
 }
 
-.shirt[data-color="Rojo"] {
+.shirt[data-garment="tshirt"][data-color="Rojo"] {
   --shirt-filter: invert(.58) sepia(1) saturate(4) hue-rotate(304deg) brightness(.6)
 }
 
-.shirt[data-color="Verde oscuro"] {
+.shirt[data-garment="tshirt"][data-color="Verde oscuro"] {
   --shirt-filter: invert(.42) sepia(.9) saturate(2.7) hue-rotate(92deg) brightness(.47)
 }
 
 .safe-area {
   position: absolute;
-  left: 30%;
+  left: 26%;
   top: 28%;
-  width: 40%;
-  height: 42%;
+  width: 48%;
+  height: 60%;
   border: 1px dashed rgba(192, 132, 252, .75);
   display: grid;
   place-items: center;

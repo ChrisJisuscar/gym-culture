@@ -1,52 +1,11 @@
-.desktop-nav a {
-  display: inline-flex;
-  align-items: center;
-  gap: .42rem
-}
-
-.desktop-nav svg,
-.nav-actions svg,
-.button svg {
-  width: 17px;
-  height: 17px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round
-}
-
-.icon-button {
-  display: grid;
-  place-items: center
-}
-
-.icon-button svg {
-  width: 19px;
-  height: 19px
-}
-
-.cart-button {
-  display: inline-flex;
-  align-items: center;
-  gap: .35rem
-}
-
-.cart-button svg {
-  width: 18px;
-  height: 18px
-}
-
-.button svg {
-  transition: transform .2s
-}
-
-.button:hover svg {
-  transform: translate(2px, -2px)
-}
-
 .culture-card {
-  cursor: default
+  cursor: pointer;
+  text-decoration: none
+}
+
+.culture-card:focus-visible {
+  outline: 2px solid var(--lavender);
+  outline-offset: 4px
 }
 
 .culture-card .card-index,
