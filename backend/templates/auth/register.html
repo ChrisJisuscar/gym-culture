@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Crear cuenta | GYM CULTURE{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/auth.css' %}">{% endblock %}
+{% block content %}
+<main class="auth-page">
+  <a class="auth-back" href="{% url 'home' %}">← VOLVER AL INICIO</a>
+  <section class="auth-card" aria-labelledby="auth-title">
+    <a class="wordmark" href="{% url 'home' %}">GYM <em>CULTURE</em></a>
+    <p class="eyebrow">MEMBERS ONLY / 02</p>
+    <h1 id="auth-title">JOIN THE <i>CULTURE</i></h1>
+    <p class="auth-intro">Creá tu cuenta y dejá tu marca.</p>
+    <form class="auth-form" data-auth-form="register" novalidate>
+      <label>Username<input name="username" type="text" autocomplete="username" required></label>
+      <label>Email<input name="email" type="email" autocomplete="email" required placeholder="tu@email.com"></label>
+      <label>Contraseña<span class="password-field"><input name="password" type="password" autocomplete="new-password" required><button type="button" class="password-toggle" aria-label="Mostrar contraseña">VER</button></span></label>
+      <label>Repetir contraseña<span class="password-field"><input name="password_confirm" type="password" autocomplete="new-password" required><button type="button" class="password-toggle" aria-label="Mostrar contraseña">VER</button></span></label>
+      <p class="auth-message" role="status" aria-live="polite"></p>
+      <button class="button button-accent" type="submit">CREAR CUENTA</button>
+    </form>
+    <p class="auth-switch">¿Ya sos parte? <a href="{% url 'login' %}">INICIAR SESIÓN</a></p>
+  </section>
+</main>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/auth.js' %}" defer></script>{% endblock %}

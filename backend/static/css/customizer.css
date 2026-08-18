@@ -378,22 +378,22 @@
   left: 26%;
   top: 28%;
   width: 48%;
-  height: 60%
+  height: 55%
 }
 
 /* En el frente se permite imprimir también sobre el bolsillo canguro. */
 .shirt[data-garment="hoodie"][data-side="front"] .safe-area {
   left: 26%;
-  top: 28%;
+  top: 30%;
   width: 48%;
-  height: 60%
+  height: 55%
 }
 
 .shirt[data-garment="hoodie"][data-side="back"] .safe-area {
   left: 26%;
-  top: 28%;
+  top: 30%;
   width: 48%;
-  height: 60%
+  height: 55%
 }
 
 .shirt-image {

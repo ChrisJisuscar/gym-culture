@@ -161,6 +161,11 @@ input {
   place-items: center
 }
 
+.nav-user-label {
+  font: 500 .58rem 'DM Mono', monospace;
+  letter-spacing: .06em
+}
+
 .icon-button svg {
   width: 19px;
   height: 19px

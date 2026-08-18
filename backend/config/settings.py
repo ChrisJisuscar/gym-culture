@@ -42,7 +42,9 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "users",
     "products",
+    "orders",
     "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
 ]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -142,12 +144,6 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 REST_FRAMEWORK = {
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.IsAuthenticated",
-    ],
-}
-
-REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
@@ -155,3 +151,5 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ],
 }
+
+AUTHENTICATION_BACKENDS = ["users.backends.EmailBackend"]
