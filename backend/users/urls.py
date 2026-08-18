@@ -9,7 +9,7 @@ router.register("users", UserViewSet, basename="user")
 
 
 urlpatterns = [
-    path("auth/register/", RegisterView.as_view(), name="register"),
+    path("auth/register/", RegisterView.as_view(), name="api_register"),
     path("auth/me/", MeView.as_view(), name="me"),
     path("auth/logout/", LogoutView.as_view(), name="logout"),
     path("", include(router.urls)),

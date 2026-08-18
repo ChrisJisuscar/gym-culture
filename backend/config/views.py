@@ -15,6 +15,10 @@ def register(request):
     return render(request, "auth/register.html")
 
 
+def cart(request):
+    return render(request, "cart.html")
+
+
 def api_home(request):
     return JsonResponse(
         {"message": "GYM CULTURE API funcionando correctamente", "status": "ok"}

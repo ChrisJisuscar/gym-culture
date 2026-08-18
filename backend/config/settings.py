@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "users",
     "products",
     "orders",
+    "cart",
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
 ]
@@ -150,6 +151,15 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+}
+
+SIMPLE_JWT = {
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "ALGORITHM": "HS256",
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
 }
 
 AUTHENTICATION_BACKENDS = ["users.backends.EmailBackend"]

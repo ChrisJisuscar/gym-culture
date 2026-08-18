@@ -16,6 +16,21 @@ class AuthenticationApiTests(APITestCase):
         self.assertEqual(user.role, User.Role.CUSTOMER)
         self.assertTrue(user.check_password("StrongPass123!"))
 
+    def test_register_rejects_duplicate_email_and_username(self):
+        User.objects.create_user(username="member", email="member@example.com", password="StrongPass123!")
+        response = self.client.post("/api/auth/register/", {
+            "username": "member", "email": "member@example.com",
+            "password": "StrongPass123!", "password_confirm": "StrongPass123!"
+        }, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_register_rejects_mismatched_passwords(self):
+        response = self.client.post("/api/auth/register/", {
+            "username": "member2", "email": "member2@example.com",
+            "password": "StrongPass123!", "password_confirm": "DifferentPass456!"
+        }, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_login_by_email_and_me(self):
         User.objects.create_user(username="member", email="member@example.com", password="StrongPass123!")
         login = self.client.post("/api/auth/login/", {"email": "member@example.com", "password": "StrongPass123!"}, format="json")
