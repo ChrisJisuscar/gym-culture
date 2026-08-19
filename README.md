@@ -1,14 +1,16 @@
 # GYM CULTURE
 
-GYM CULTURE uses Django Templates, native static files, HTML, CSS and vanilla JavaScript. The Home V1 has no catalogue, cart, checkout or customizer yet.
+GYM CULTURE uses Django Templates, native static files, HTML, CSS and vanilla JavaScript. The Django backend serves the rendered frontend, REST API and product media.
 
 - `backend/`: Django, REST API, products, users, JWT and media.
-- `backend/templates/`: base page, Home and reusable visual sections.
-- `backend/static/`: CSS and JavaScript served through Django staticfiles.
+- `frontend/templates/`: base page, Home, authentication pages and reusable visual sections.
+- `frontend/static/`: CSS, JavaScript and visual assets served through Django staticfiles.
+- `backend/media/`: uploaded product media, kept on the backend side.
 
 Configure the root `.env` with the PostgreSQL values, then run:
 
 ```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe backend\manage.py migrate
 .\.venv\Scripts\python.exe backend\manage.py runserver
 ```
