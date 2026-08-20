@@ -1,12 +1,20 @@
 .hero {
+  position: relative;
   background: linear-gradient(90deg, rgba(8, 7, 13, .42) 0%, rgba(8, 7, 13, .16) 48%, rgba(8, 7, 13, .06) 100%), url('../images/hero-gym-culture.png') center/82% auto no-repeat
 }
 
 .hero-grid,
 .hero-lines,
-.hero-kanji,
 .hero:before {
   display: none
+}
+
+.hero-kanji {
+  display: block;
+  position: absolute;
+  top: 200px;
+  left: 550px;
+  font-size: 300px;
 }
 
 .hero-copy {

@@ -41,6 +41,7 @@ class AuthenticationApiTests(APITestCase):
         me = self.client.get("/api/auth/me/")
         self.assertEqual(me.status_code, status.HTTP_200_OK)
         self.assertEqual(me.data["email"], "member@example.com")
+        self.assertEqual(me.data["date_joined"], User.objects.get(email="member@example.com").date_joined.isoformat().replace("+00:00", "Z"))
 
     def test_me_rejects_anonymous_requests(self):
         self.assertEqual(self.client.get("/api/auth/me/").status_code, status.HTTP_401_UNAUTHORIZED)

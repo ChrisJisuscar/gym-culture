@@ -9,6 +9,20 @@
     localStorage.setItem(keys.refresh, refresh);
     localStorage.setItem(keys.user, JSON.stringify(user));
   };
+  const formatJoinedDate = (value) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('es-AR', {
+      day: '2-digit', month: 'long', year: 'numeric'
+    }).format(date);
+  };
+  const setProfileOpen = (open) => {
+    const trigger = document.querySelector('#nav-auth');
+    const menu = document.querySelector('#nav-user-menu');
+    if (!trigger || !menu) return;
+    menu.hidden = !open;
+    trigger.setAttribute('aria-expanded', String(open));
+  };
   const refreshAccess = async () => {
     const refresh = localStorage.getItem(keys.refresh);
     if (!refresh) throw new Error('No hay sesión.');
@@ -34,14 +48,32 @@
     const user = readUser();
     const navAuth = document.querySelector('#nav-auth');
     const mobileAuth = document.querySelector('#mobile-auth');
+    const mobileLogout = document.querySelector('#mobile-logout-button');
+    const mobileProfile = document.querySelector('#mobile-profile');
+    const loginButton = document.querySelector('#nav-login-button');
     [navAuth, mobileAuth].filter(Boolean).forEach((link) => {
       link.dataset.authenticated = Boolean(user);
-      link.href = user ? '#' : '/login/';
-      link.setAttribute('aria-label', user ? `Cerrar sesión de ${user.username}` : 'Iniciar sesión');
-      link.title = user ? `Cerrar sesión: ${user.username}` : 'Iniciar sesión';
+      if (link.tagName === 'A') link.href = user ? '#' : '/login/';
+      link.setAttribute('aria-label', user ? `Abrir perfil de ${user.username}` : 'Iniciar sesión');
+      link.title = user ? `Abrir perfil: ${user.username}` : 'Iniciar sesión';
       if (link.id === 'nav-auth') link.querySelector('.nav-user-label').textContent = user ? user.username.toUpperCase() : 'LOGIN';
-      else link.textContent = user ? `Salir (${user.username})` : 'Login';
+      else link.textContent = user ? `Perfil (${user.username})` : 'Login';
     });
+    if (mobileLogout) mobileLogout.hidden = !user;
+    if (loginButton) {
+      loginButton.hidden = false;
+      loginButton.textContent = user ? 'Cerrar sesión' : 'Iniciar sesión';
+      loginButton.dataset.authenticated = Boolean(user);
+      loginButton.setAttribute('aria-label', user ? 'Cerrar sesión' : 'Iniciar sesión');
+    }
+    if (!user && mobileProfile) mobileProfile.hidden = true;
+    document.querySelector('#nav-profile-username')?.replaceChildren(document.createTextNode(user?.username || '—'));
+    document.querySelector('#nav-profile-email')?.replaceChildren(document.createTextNode(user?.email || '—'));
+    document.querySelector('#nav-profile-joined')?.replaceChildren(document.createTextNode(formatJoinedDate(user?.date_joined)));
+    document.querySelector('#mobile-profile-username')?.replaceChildren(document.createTextNode(user?.username || '—'));
+    document.querySelector('#mobile-profile-email')?.replaceChildren(document.createTextNode(user?.email || '—'));
+    document.querySelector('#mobile-profile-joined')?.replaceChildren(document.createTextNode(`Miembro desde ${formatJoinedDate(user?.date_joined)}`));
+    if (!user) setProfileOpen(false);
   };
   const logout = async () => {
     const refresh = localStorage.getItem(keys.refresh);
@@ -65,8 +97,32 @@
   document.addEventListener('DOMContentLoaded', () => {
     updateNavbar();
     hydrate();
-    document.querySelectorAll('#nav-auth, #mobile-auth').forEach((link) => link.addEventListener('click', (event) => {
-      if (link.dataset.authenticated === 'true') { event.preventDefault(); logout(); }
-    }));
+    const navAuth = document.querySelector('#nav-auth');
+    const mobileAuth = document.querySelector('#mobile-auth');
+    const mobileLogout = document.querySelector('#mobile-logout-button');
+    const mobileProfile = document.querySelector('#mobile-profile');
+    const loginButton = document.querySelector('#nav-login-button');
+    navAuth?.addEventListener('click', (event) => {
+      if (navAuth.dataset.authenticated !== 'true') return;
+      event.preventDefault();
+      const menu = document.querySelector('#nav-user-menu');
+      setProfileOpen(Boolean(menu?.hidden));
+    });
+    mobileAuth?.addEventListener('click', (event) => {
+      if (mobileAuth.dataset.authenticated !== 'true') return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (mobileProfile) mobileProfile.hidden = !mobileProfile.hidden;
+    });
+    mobileLogout?.addEventListener('click', logout);
+    loginButton?.addEventListener('click', () => {
+      if (loginButton.dataset.authenticated === 'true') logout();
+      else window.location.assign('/login/');
+    });
+    document.querySelector('#nav-logout-button')?.addEventListener('click', logout);
+    document.addEventListener('click', (event) => {
+      if (!event.target.closest('.user-menu-wrap')) setProfileOpen(false);
+      if (!event.target.closest('#mobile-profile') && !event.target.closest('#mobile-auth') && mobileProfile) mobileProfile.hidden = true;
+    });
   });
 })();

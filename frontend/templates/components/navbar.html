@@ -33,19 +33,25 @@
         <sup id="cart-count-badge">0</sup>
       </a>
       <div class="user-menu-wrap">
-        <a class="icon-button" id="nav-auth" href="{% url 'login_page' %}" aria-label="Iniciar sesión" title="Iniciar sesión">
+        <button class="icon-button" id="nav-auth" type="button" aria-expanded="false" aria-controls="nav-user-menu" aria-label="Iniciar sesión" title="Iniciar sesión">
           <svg aria-hidden="true" viewBox="0 0 24 24">
             <circle cx="12" cy="8" r="3.5" />
             <path d="M5 21a7 7 0 0 1 14 0" />
           </svg>
           <span class="nav-user-label">LOGIN</span>
-        </a>
+        </button>
         <div id="nav-user-menu" class="user-menu" hidden>
-          <a href="#">Mi cuenta</a>
-          <a href="#">Mis pedidos</a>
+          <div class="user-profile-heading"><span aria-hidden="true">👤</span><strong>Tu perfil</strong></div>
+          <dl class="user-profile-data">
+            <div><dt>Usuario</dt><dd id="nav-profile-username">—</dd></div>
+            <div><dt>Email</dt><dd id="nav-profile-email">—</dd></div>
+            <div><dt>Miembro desde</dt><dd id="nav-profile-joined">—</dd></div>
+          </dl>
+          <a class="user-cart-link" href="{% url 'cart' %}"><span aria-hidden="true">🛒</span> Vea sus productos seleccionados en el carrito</a>
           <button type="button" id="nav-logout-button">Cerrar sesión</button>
         </div>
       </div>
+      <button class="nav-login-button" id="nav-login-button" type="button">Iniciar sesión</button>
     </div>
   </nav>
   <div class="mobile-menu" id="mobile-menu">
@@ -54,5 +60,12 @@
     <a href="{% url 'home' %}#culture">Culturas</a>
     <a href="{% url 'cart' %}">Carrito</a>
     <a id="mobile-auth" href="{% url 'login_page' %}">Login</a>
+    <div id="mobile-profile" class="mobile-profile" hidden>
+      <strong id="mobile-profile-username">—</strong>
+      <span id="mobile-profile-email">—</span>
+      <span id="mobile-profile-joined">—</span>
+      <a href="{% url 'cart' %}">🛒 Ver carrito</a>
+    </div>
+    <button id="mobile-logout-button" type="button" hidden>Cerrar sesión</button>
   </div>
 </header>

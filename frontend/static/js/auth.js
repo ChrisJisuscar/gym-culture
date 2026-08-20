@@ -39,7 +39,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       window.GymCultureAuth.save(await response.json());
       window.GymCultureAuth.updateNavbar();
-      window.location.assign('/');
+      const next = new URLSearchParams(window.location.search).get('next');
+      const destination = next && next.startsWith('/') && !next.startsWith('//') ? next : '/';
+      window.location.assign(destination);
     } catch (error) { showMessage(error.message); }
     finally { submit.disabled = false; }
   });

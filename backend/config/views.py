@@ -32,7 +32,7 @@ def create_tshirt(request):
     variants = []
     if product:
         variants = [
-            {"size": variant.size, "color": variant.color, "stock": variant.stock}
+            {"id": variant.id, "size": variant.size, "color": variant.color, "stock": variant.stock}
             for variant in product.variants.all()
         ]
     return render(

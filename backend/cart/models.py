@@ -19,13 +19,14 @@ class CartItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="cart_items")
     variant = models.ForeignKey(ProductVariant, on_delete=models.PROTECT, related_name="cart_items", null=True, blank=True)
     quantity = models.PositiveIntegerField(default=1)
+    customization_data = models.JSONField(null=True, blank=True)
+    preview_front = models.ImageField(upload_to="cart-previews/", null=True, blank=True)
+    preview_back = models.ImageField(upload_to="cart-previews/", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=["cart", "product", "variant"], name="unique_cart_item_per_variant"),
-        ]
+        constraints = []
 
     def clean(self):
         if self.quantity <= 0:

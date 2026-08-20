@@ -46,6 +46,7 @@ if (root) {
   const money = (value) => `Gs. ${Math.round(value).toLocaleString('es-PY')}`;
   // Conserva el estado serializado para las acciones de deshacer y rehacer.
   const snapshot = () => JSON.stringify({
+    version: 1,
     garment: state.garment,
     garments: state.garments,
     side: state.side,
@@ -96,6 +97,14 @@ if (root) {
   const updateColorButtons = () => {
     document.querySelectorAll('.color-option').forEach((button) => {
       const isActive = button.dataset.color === state.variant.color;
+      button.classList.toggle('is-selected', isActive);
+      button.setAttribute('aria-checked', String(isActive));
+    });
+  };
+
+  const updateSizeButtons = () => {
+    document.querySelectorAll('.size-option').forEach((button) => {
+      const isActive = button.dataset.size === state.variant.size;
       button.classList.toggle('is-selected', isActive);
       button.setAttribute('aria-checked', String(isActive));
     });
@@ -432,6 +441,7 @@ if (root) {
     updateSideButtons();
     updateGarmentButtons();
     updateColorButtons();
+    updateSizeButtons();
     updateStock();
     updateStockMessage();
     updateShirtImage();
@@ -461,8 +471,138 @@ if (root) {
     dialog.showModal();
   });
   document.querySelector('.dialog-close').addEventListener('click', () => dialog.close());
-  document.querySelector('#add-cart').addEventListener('click', () => {
-    document.querySelector('#cart-note').textContent = 'Tu configuración está lista para conectar al carrito en la próxima etapa.';
+  const cartButton = document.querySelector('#add-cart');
+  const cartNote = document.querySelector('#cart-note');
+  const loginDestination = () => `/login/?next=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`;
+  const editItemId = new URLSearchParams(window.location.search).get('edit_cart_item');
+  const showCartError = async (response) => {
+    const data = await response.json().catch(() => ({}));
+    const detail = data.detail || Object.values(data).flat().join(' ');
+    cartNote.textContent = detail || 'No pudimos agregar el producto. Revisá la variante y el stock.';
+  };
+
+  const loadImage = (source) => new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = source;
+  });
+
+  const renderPreview = async (side) => {
+    const source = getGarmentImageForSide(side);
+    const recoloredSource = await recolorShirtImage(source, state.variant.color, state.garment);
+    const garmentImage = await loadImage(recoloredSource);
+    const canvas = document.createElement('canvas');
+    canvas.width = 800;
+    canvas.height = Math.round(800 * garmentImage.naturalHeight / garmentImage.naturalWidth);
+    const context = canvas.getContext('2d');
+    context.drawImage(garmentImage, 0, 0, canvas.width, canvas.height);
+    const shirtRect = shirt.getBoundingClientRect();
+    const safeRect = safeArea.getBoundingClientRect();
+    const scale = canvas.width / shirtRect.width;
+    const safe = {
+      left: (safeRect.left - shirtRect.left) * scale,
+      top: (safeRect.top - shirtRect.top) * scale,
+      width: safeRect.width * scale,
+      height: safeRect.height * scale,
+    };
+    const elements = state.garments[state.garment][side].elements;
+    for (const item of elements) {
+      const centerX = safe.left + (item.x / 100) * safe.width;
+      const centerY = safe.top + (item.y / 100) * safe.height;
+      const width = (item.width / 100) * safe.width;
+      const height = (item.height / 100) * safe.height;
+      context.save();
+      context.translate(centerX, centerY);
+      context.rotate(item.rotation * Math.PI / 180);
+      if (item.type === 'image') {
+        const image = await loadImage(item.content);
+        context.drawImage(image, -width / 2, -height / 2, width, height);
+      } else {
+        const fontSize = Math.max(11, item.height * 1.35) * scale;
+        context.font = `${item.bold ? '800' : '500'} ${fontSize}px ${item.font}`;
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        item.content.split('\n').forEach((line, index, lines) => {
+          context.fillStyle = '#f5f3ff';
+          context.fillText(line, 0, (index - (lines.length - 1) / 2) * fontSize * 1.1);
+        });
+      }
+      context.restore();
+    }
+    return canvas.toDataURL('image/webp', .9);
+  };
+
+  const loadEditItem = async () => {
+    if (!editItemId) return;
+    if (!localStorage.getItem('gc_access_token') && !localStorage.getItem('gc_refresh_token')) {
+      window.location.assign(loginDestination());
+      return;
+    }
+    const response = await window.GymCultureAuth.request(`/api/cart/items/${editItemId}/`);
+    if (!response.ok) {
+      cartNote.textContent = 'No pudimos cargar esta personalización.';
+      return;
+    }
+    const item = await response.json();
+    if (!item.customization_data) {
+      cartNote.textContent = 'Este producto no tiene un diseño personalizado guardado.';
+      return;
+    }
+    restoreSnapshot(item.customization_data);
+    cartButton.textContent = 'GUARDAR CAMBIOS';
+    document.querySelector('.customizer-intro p:last-child').textContent = 'Editá tu diseño guardado y actualizá la prenda.';
+  };
+
+  cartButton.addEventListener('click', async () => {
+    if (!localStorage.getItem('gc_access_token') && !localStorage.getItem('gc_refresh_token')) {
+      cartNote.textContent = 'Necesitás iniciar sesión para agregar este producto.';
+      window.location.assign(loginDestination());
+      return;
+    }
+    const productId = Number(root.dataset.productId);
+    const selectedVariant = variants.find((variant) => (
+      variant.size === state.variant.size &&
+      variant.color.toLowerCase() === state.variant.color.toLowerCase()
+    ));
+    if (!productId) {
+      cartNote.textContent = 'El personalizador necesita un producto base activo para agregar la prenda al carrito.';
+      return;
+    }
+    if (variants.length && (!selectedVariant || selectedVariant.stock < 1)) {
+      cartNote.textContent = 'Seleccioná una variante con stock antes de agregar el producto al carrito.';
+      return;
+    }
+    cartButton.disabled = true;
+    cartButton.textContent = editItemId ? 'GUARDANDO...' : 'AGREGANDO...';
+    cartNote.textContent = '';
+    try {
+      const customizationData = JSON.parse(snapshot());
+      const previewFront = await renderPreview('front');
+      const previewBack = await renderPreview('back');
+      const response = await window.GymCultureAuth.request(editItemId ? `/api/cart/items/${editItemId}/` : '/api/cart/items/', {
+        method: editItemId ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product: productId, variant: selectedVariant?.id ?? null, quantity: 1, customization_data: customizationData, preview_front: previewFront, preview_back: previewBack })
+      });
+      if (response.status === 401) {
+        cartNote.textContent = 'Tu sesión expiró. Iniciá sesión para continuar.';
+        window.location.assign(loginDestination());
+        return;
+      }
+      if (!response.ok) {
+        await showCartError(response);
+        return;
+      }
+      cartNote.textContent = editItemId ? 'Diseño actualizado en el carrito.' : 'Producto agregado al carrito.';
+      document.dispatchEvent(new CustomEvent('gymculture:cart-changed'));
+    } catch (error) {
+      console.error(error);
+      cartNote.textContent = 'No pudimos conectar con el carrito. Intentá de nuevo.';
+    } finally {
+      cartButton.disabled = false;
+      cartButton.textContent = editItemId ? 'GUARDAR CAMBIOS' : 'AGREGAR AL CARRITO';
+    }
   });
 
   updateStock();
@@ -472,4 +612,8 @@ if (root) {
   updateStockMessage();
   updateShirtImage();
   render();
+  loadEditItem().catch((error) => {
+    console.error(error);
+    cartNote.textContent = 'No pudimos cargar la personalización.';
+  });
 }
