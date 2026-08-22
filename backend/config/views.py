@@ -1,5 +1,6 @@
-from django.http import JsonResponse
 from django.shortcuts import render
+from django.http import JsonResponse
+
 from products.models import Product
 
 
@@ -26,13 +27,18 @@ def api_home(request):
 
 
 def create_tshirt(request):
-    """Customizer UI. Persistence/cart integration is intentionally deferred."""
+    """Muestra el personalizador sin persistencia ni integración con el carrito."""
     # Cargamos las variantes junto al producto para evitar consultas adicionales en la plantilla.
     product = Product.objects.filter(active=True).prefetch_related("variants").first()
     variants = []
     if product:
         variants = [
-            {"id": variant.id, "size": variant.size, "color": variant.color, "stock": variant.stock}
+            {
+                "id": variant.id,
+                "size": variant.size,
+                "color": variant.color,
+                "stock": variant.stock,
+            }
             for variant in product.variants.all()
         ]
     return render(

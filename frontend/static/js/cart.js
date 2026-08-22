@@ -41,7 +41,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (subtotalEl) subtotalEl.textContent = formatMoney(cart?.subtotal || 0);
 
     if (!items.length) {
-      renderEmptyState('Entrá a la tienda para elegir tus prendas.', { href: '/', label: 'Ir a la tienda' });
+      renderEmptyState(
+        'Entrá a la tienda para elegir tus prendas.',
+        { href: '/', label: 'Ir a la tienda' }
+      );
       return;
     }
 
@@ -49,7 +52,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const editHref = `/crear-mi-remera/?edit_cart_item=${encodeURIComponent(item.id)}`;
       const imageMarkup = item.is_customized && item.preview_front
         ? `<a class="cart-preview-link" href="${editHref}" aria-label="Editar diseño de ${escapeHtml(item.product_name)}"><img class="cart-preview-front" src="${escapeHtml(item.preview_front)}" alt="Preview de ${escapeHtml(item.product_name)} personalizada">${item.preview_back ? `<img class="cart-preview-back" src="${escapeHtml(item.preview_back)}" alt="Preview trasera de ${escapeHtml(item.product_name)} personalizada" hidden>` : ''}</a>`
-        : (item.product_image ? `<img src="${escapeHtml(item.product_image)}" alt="${escapeHtml(item.product_name)}">` : '<span>GC</span>');
+        : (
+          item.product_image
+            ? `<img src="${escapeHtml(item.product_image)}" alt="${escapeHtml(item.product_name)}">`
+            : '<span>GC</span>'
+        );
       return `
       <article class="cart-item" data-item-id="${item.id}">
         <div class="cart-item-image">

@@ -10,8 +10,34 @@
     <h1 id="auth-title">ENTER THE <i>CULTURE</i></h1>
     <p class="auth-intro">Tu próximo drop empieza acá.</p>
     <form class="auth-form" data-auth-form="login" novalidate>
-      <label>Email<input name="email" type="email" autocomplete="email" required placeholder="tu@email.com"></label>
-      <label>Contraseña<span class="password-field"><input name="password" type="password" autocomplete="current-password" required><button type="button" class="password-toggle" aria-label="Mostrar contraseña">VER</button></span></label>
+      <label>
+        Email
+        <input
+          name="email"
+          type="email"
+          autocomplete="email"
+          required
+          placeholder="tu@email.com"
+        >
+      </label>
+      <label>
+        Contraseña
+        <span class="password-field">
+          <input
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+          >
+          <button
+            type="button"
+            class="password-toggle"
+            aria-label="Mostrar contraseña"
+          >
+            VER
+          </button>
+        </span>
+      </label>
       <p class="auth-message" role="status" aria-live="polite"></p>
       <button class="button button-accent" type="submit">INICIAR SESIÓN</button>
     </form>

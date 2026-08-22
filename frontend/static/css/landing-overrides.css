@@ -2,48 +2,155 @@
   cursor: pointer;
   text-decoration: none
 }
-
 .culture-card:focus-visible {
   outline: 2px solid var(--lavender);
   outline-offset: 4px
 }
-
 .culture-card .card-index,
 .culture-urban:before,
 .culture-urban:after,
 .urban-tag {
   display: none
 }
-
 .culture-memes .culture-photo {
   background-size: cover;
   background-position: center 33%
 }
-
 .culture-memes .meme-copy {
   z-index: 2
 }
-
 .culture-urban .culture-photo {
   background-size: cover;
   background-position: center;
   filter: grayscale(.45) contrast(1.08) brightness(.62)
 }
-
+/* Home scale adjustments for the original navbar and culture cards. */
+.nav-shell .navbar {
+  height: 90px;
+  padding-right: 4.5vw;
+  padding-left: 4.5vw;
+}
+.nav-shell .wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-size: 1.8rem;
+}
+.nav-shell .wordmark .by-gc {
+  white-space: nowrap;
+}
+.nav-shell .desktop-nav {
+  gap: 3rem;
+  margin-right: 5vw;
+  margin-left: auto;
+  white-space: nowrap;
+}
+.nav-shell .desktop-nav a,
+.nav-shell .nav-actions,
+.nav-shell .text-link {
+  font-size: .98rem;
+  letter-spacing: .08em;
+}
+.nav-shell .desktop-nav svg,
+.nav-shell .nav-actions svg,
+.nav-shell .icon-button svg,
+.nav-shell .cart-button svg {
+  width: 26px;
+  height: 26px;
+}
+.nav-shell .nav-actions {
+  gap: 1.3rem;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.nav-shell .nav-user-label {
+  font-size: .78rem;
+}
+.nav-shell .nav-login-button {
+  min-width: 8rem;
+  min-height: 2rem;
+  padding: .45rem .7rem;
+  font-size: .68rem;
+  white-space: nowrap;
+}
+.nav-shell .user-menu {
+  width: min(380px, 88vw);
+  padding: 1.35rem;
+}
+.nav-shell .user-profile-heading {
+  gap: .7rem;
+  padding-bottom: 1rem;
+  font-size: 1.05rem;
+}
+.nav-shell .user-profile-data {
+  gap: .85rem;
+  margin: 1.1rem 0;
+}
+.nav-shell .user-profile-data dt {
+  font-size: .7rem;
+}
+.nav-shell .user-profile-data dd {
+  font-size: .98rem;
+}
+.nav-shell .user-cart-link {
+  padding: .9rem;
+  font-size: .9rem;
+}
+.nav-shell #nav-logout-button {
+  font-size: .78rem;
+}
+.culture-grid {
+  max-width: 1250px;
+  gap: 10px;
+}
+.culture-grid .culture-card {
+  height: 520px;
+}
+@media(max-width: 900px) {
+  .nav-shell .navbar {
+    height: 86px;
+    padding-right: 3vw;
+    padding-left: 3vw;
+  }
+  .nav-shell .wordmark {
+    font-size: 1.8rem;
+  }
+  .nav-shell .desktop-nav {
+    gap: 1.25rem;
+    margin-right: 2vw;
+    margin-left: auto;
+  }
+  .culture-grid {
+    gap: 8px;
+  }
+  .culture-grid .culture-card {
+    height: 440px;
+  }
+}
+@media(max-width: 760px) {
+  .nav-shell .navbar {
+    height: 70px;
+  }
+  .nav-shell .wordmark {
+    font-size: 1.8rem;
+  }
+  .culture-grid .culture-card {
+    height: 365px;
+  }
+}
 .custom-art {
   display: grid;
   place-items: center;
   padding: 4rem 3.5rem;
   background: radial-gradient(circle at 50% 46%, rgba(124, 58, 237, .17), transparent 60%), #0d0b13
 }
-
 .custom-art:before,
 .custom-mark,
 .custom-grid,
 .custom-art p {
   display: none
 }
-
 .custom-art img {
   position: relative;
   z-index: 1;
@@ -55,17 +162,14 @@
   box-shadow: 0 22px 50px rgba(0, 0, 0, .45), 0 0 34px rgba(124, 58, 237, .12);
   transform: perspective(1200px) rotateY(4deg) rotateX(1.5deg)
 }
-
 @media(max-width:760px) {
   .custom-art {
     padding: 2rem 1.25rem;
     min-height: auto
   }
-
   .custom-art img {
     transform: none
   }
-
   .desktop-nav svg {
     display: none
   }

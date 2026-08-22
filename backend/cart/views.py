@@ -1,4 +1,3 @@
-from django.db import transaction
 from rest_framework import status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -28,13 +27,20 @@ class CartItemViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         cart, _ = Cart.objects.get_or_create(user=self.request.user)
-        return cart.items.select_related("product", "variant").prefetch_related("product__images")
+        return cart.items.select_related("product", "variant").prefetch_related(
+            "product__images"
+        )
 
     def create(self, request, *args, **kwargs):
-        serializer = AddCartItemSerializer(data=request.data, context={"request": request})
+        serializer = AddCartItemSerializer(
+            data=request.data, context={"request": request}
+        )
         serializer.is_valid(raise_exception=True)
         item = serializer.save()
-        return Response(CartItemSerializer(item, context={"request": request}).data, status=status.HTTP_201_CREATED)
+        return Response(
+            CartItemSerializer(item, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     def partial_update(self, request, *args, **kwargs):
         item = self.get_object()
@@ -47,21 +53,37 @@ class CartItemViewSet(viewsets.ModelViewSet):
                 "preview_front": request.data.get("preview_front"),
                 "preview_back": request.data.get("preview_back"),
             }
-            serializer = AddCartItemSerializer(data=payload, context={"request": request})
+            serializer = AddCartItemSerializer(
+                data=payload, context={"request": request}
+            )
             serializer.is_valid(raise_exception=True)
             updated_item = serializer.save(existing_item=item)
-            return Response(CartItemSerializer(updated_item, context={"request": request}).data)
+            return Response(
+                CartItemSerializer(updated_item, context={"request": request}).data
+            )
         quantity = request.data.get("quantity")
         if quantity is None:
-            return Response({"quantity": ["Este campo es obligatorio."]}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"quantity": ["Este campo es obligatorio."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         try:
             quantity = int(quantity)
         except (TypeError, ValueError):
-            return Response({"quantity": ["La cantidad debe ser un número entero."]}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"quantity": ["La cantidad debe ser un número entero."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if quantity < 1:
-            return Response({"quantity": ["La cantidad debe ser mayor que 0."]}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"quantity": ["La cantidad debe ser mayor que 0."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if item.variant and quantity > item.variant.stock:
-            return Response({"quantity": f"Stock insuficiente. Disponible: {item.variant.stock}"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"quantity": f"Stock insuficiente. Disponible: {item.variant.stock}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         item.quantity = quantity
         item.save(update_fields=["quantity", "updated_at"])
         return Response(CartItemSerializer(item, context={"request": request}).data)

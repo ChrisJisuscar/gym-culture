@@ -10,7 +10,9 @@ class OrderViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        queryset = Order.objects.select_related("user").prefetch_related("items__product", "items__variant")
+        queryset = Order.objects.select_related("user").prefetch_related(
+            "items__product", "items__variant"
+        )
         if self.request.user.role == self.request.user.Role.ADMIN:
             return queryset
         return queryset.filter(user=self.request.user)

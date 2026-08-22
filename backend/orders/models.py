@@ -14,9 +14,15 @@ class Order(models.Model):
         DELIVERED = "DELIVERED", "Delivered"
         CANCELLED = "CANCELLED", "Cancelled"
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="orders")
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
-    total = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="orders"
+    )
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.PENDING
+    )
+    total = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0.00")
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -34,9 +40,15 @@ class Order(models.Model):
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
-    product = models.ForeignKey("products.Product", on_delete=models.PROTECT, related_name="order_items")
+    product = models.ForeignKey(
+        "products.Product", on_delete=models.PROTECT, related_name="order_items"
+    )
     variant = models.ForeignKey(
-        "products.ProductVariant", on_delete=models.PROTECT, related_name="order_items", null=True, blank=True
+        "products.ProductVariant",
+        on_delete=models.PROTECT,
+        related_name="order_items",
+        null=True,
+        blank=True,
     )
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     unit_price = models.DecimalField(max_digits=12, decimal_places=2)

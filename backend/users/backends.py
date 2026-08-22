@@ -4,7 +4,7 @@ from .models import User
 
 
 class EmailBackend(ModelBackend):
-    """Authenticate the existing custom user model by its unique email."""
+    """Autentica el modelo de usuario mediante su correo electrónico único."""
 
     def authenticate(self, request, username=None, password=None, **kwargs):
         email = (kwargs.get("email") or username or "").strip().lower()
@@ -16,4 +16,8 @@ class EmailBackend(ModelBackend):
             # Keep Django's password-hash timing behavior for unknown users.
             User().set_password(password)
             return None
-        return user if user.check_password(password) and self.user_can_authenticate(user) else None
+        return (
+            user
+            if user.check_password(password) and self.user_can_authenticate(user)
+            else None
+        )

@@ -24,8 +24,16 @@
       <a href="{% url 'home' %}#culture">CULTURAS</a>
     </div>
     <div class="nav-actions">
-      <a class="cart-button" href="{% url 'cart' %}" aria-label="Carrito" title="Carrito">
-        <svg aria-hidden="true" viewBox="0 0 24 24">
+      <a
+        class="cart-button"
+        href="{% url 'cart' %}"
+        aria-label="Carrito"
+        title="Carrito"
+      >
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+        >
           <path d="M3 3h2l2.3 11.5a2 2 0 0 0 2 1.5h8.2a2 2 0 0 0 2-1.6L21 7H6" />
           <circle cx="9" cy="20" r="1.25" />
           <circle cx="18" cy="20" r="1.25" />
@@ -33,21 +41,47 @@
         <sup id="cart-count-badge">0</sup>
       </a>
       <div class="user-menu-wrap">
-        <button class="icon-button" id="nav-auth" type="button" aria-expanded="false" aria-controls="nav-user-menu" aria-label="Iniciar sesión" title="Iniciar sesión">
-          <svg aria-hidden="true" viewBox="0 0 24 24">
+        <button
+          class="icon-button"
+          id="nav-auth"
+          type="button"
+          aria-expanded="false"
+          aria-controls="nav-user-menu"
+          aria-label="Iniciar sesión"
+          title="Iniciar sesión"
+        >
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+          >
             <circle cx="12" cy="8" r="3.5" />
             <path d="M5 21a7 7 0 0 1 14 0" />
           </svg>
           <span class="nav-user-label">LOGIN</span>
         </button>
         <div id="nav-user-menu" class="user-menu" hidden>
-          <div class="user-profile-heading"><span aria-hidden="true">👤</span><strong>Tu perfil</strong></div>
+          <div class="user-profile-heading">
+            <span aria-hidden="true">👤</span>
+            <strong>Tu perfil</strong>
+          </div>
           <dl class="user-profile-data">
-            <div><dt>Usuario</dt><dd id="nav-profile-username">—</dd></div>
-            <div><dt>Email</dt><dd id="nav-profile-email">—</dd></div>
-            <div><dt>Miembro desde</dt><dd id="nav-profile-joined">—</dd></div>
+            <div>
+              <dt>Usuario</dt>
+              <dd id="nav-profile-username">—</dd>
+            </div>
+            <div>
+              <dt>Email</dt>
+              <dd id="nav-profile-email">—</dd>
+            </div>
+            <div>
+              <dt>Miembro desde</dt>
+              <dd id="nav-profile-joined">—</dd>
+            </div>
           </dl>
-          <a class="user-cart-link" href="{% url 'cart' %}"><span aria-hidden="true">🛒</span> Vea sus productos seleccionados en el carrito</a>
+          <a class="user-cart-link" href="{% url 'cart' %}">
+            <span aria-hidden="true">🛒</span>
+            Vea sus productos seleccionados en el carrito
+          </a>
           <button type="button" id="nav-logout-button">Cerrar sesión</button>
         </div>
       </div>

@@ -117,20 +117,67 @@
         <section>
           <h3>TALLA</h3>
           <div class="size-options" role="radiogroup" aria-label="Talla">
-            <button class="size-option" data-size="S" role="radio">S</button><button class="size-option" data-size="M" role="radio">M</button><button class="size-option" data-size="L" role="radio">L</button><button class="size-option is-selected" data-size="XL" role="radio" aria-checked="true">XL</button><button class="size-option" data-size="2XL" role="radio">2XL</button>
+            <button class="size-option" data-size="S" role="radio">
+              S
+            </button>
+            <button class="size-option" data-size="M" role="radio">
+              M
+            </button>
+            <button class="size-option" data-size="L" role="radio">
+              L
+            </button>
+            <button
+              class="size-option is-selected"
+              data-size="XL"
+              role="radio"
+              aria-checked="true"
+            >
+              XL
+            </button>
+            <button class="size-option" data-size="2XL" role="radio">
+              2XL
+            </button>
           </div>
           <p class="stock-note" id="stock-note">Elegí una talla para continuar.</p>
         </section>
         <section>
           <h3>DISEÑO</h3>
           <div class="design-actions">
-            <label class="upload-button" for="image-upload">+ SUBIR IMAGEN</label><input id="image-upload" type="file" accept="image/png,image/jpeg,image/webp" hidden><button type="button" class="outline-button" id="add-text">+ AGREGAR TEXTO</button>
+            <label class="upload-button" for="image-upload">
+              + SUBIR IMAGEN
+            </label>
+            <input
+              id="image-upload"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              hidden
+            >
+            <button
+              type="button"
+              class="outline-button"
+              id="add-text"
+            >
+              + AGREGAR TEXTO
+            </button>
           </div>
           <p class="editor-message" id="upload-message" role="status"></p>
           <div class="text-controls" id="text-controls" hidden>
-            <label for="text-content">TEXTO</label><input id="text-content" maxlength="40" value="GYM CULTURE">
+            <label for="text-content">TEXTO</label>
+            <input
+              id="text-content"
+              maxlength="40"
+              value="GYM CULTURE"
+            >
             <div>
-              <button type="button" data-font="Outfit">OUTFIT</button><button type="button" data-font="DM Mono">MONO</button><button type="button" id="text-bold"><b>B</b></button>
+              <button type="button" data-font="Outfit">
+                OUTFIT
+              </button>
+              <button type="button" data-font="DM Mono">
+                MONO
+              </button>
+              <button type="button" id="text-bold">
+                <b>B</b>
+              </button>
             </div>
           </div>
         </section>

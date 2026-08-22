@@ -6,7 +6,9 @@ from products.models import Product, ProductVariant
 
 
 class Cart(models.Model):
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="cart")
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="cart"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -16,8 +18,16 @@ class Cart(models.Model):
 
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items")
-    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="cart_items")
-    variant = models.ForeignKey(ProductVariant, on_delete=models.PROTECT, related_name="cart_items", null=True, blank=True)
+    product = models.ForeignKey(
+        Product, on_delete=models.PROTECT, related_name="cart_items"
+    )
+    variant = models.ForeignKey(
+        ProductVariant,
+        on_delete=models.PROTECT,
+        related_name="cart_items",
+        null=True,
+        blank=True,
+    )
     quantity = models.PositiveIntegerField(default=1)
     customization_data = models.JSONField(null=True, blank=True)
     preview_front = models.ImageField(upload_to="cart-previews/", null=True, blank=True)
@@ -32,7 +42,9 @@ class CartItem(models.Model):
         if self.quantity <= 0:
             raise ValidationError({"quantity": "La cantidad debe ser mayor que 0."})
         if self.variant and self.variant.product_id != self.product_id:
-            raise ValidationError({"variant": "La variante no pertenece al producto seleccionado."})
+            raise ValidationError(
+                {"variant": "La variante no pertenece al producto seleccionado."}
+            )
 
     def save(self, *args, **kwargs):
         self.full_clean()

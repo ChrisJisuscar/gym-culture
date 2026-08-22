@@ -1,18 +1,17 @@
 from django.contrib import admin
-from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.urls import include, path
 
-from rest_framework_simplejwt.views import TokenRefreshView
-
-from users.serializers import EmailTokenObtainPairSerializer
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from .views import api_home, cart, create_tshirt, home, login, register
+from users.serializers import EmailTokenObtainPairSerializer
 
 
 class EmailTokenObtainPairView(TokenObtainPairView):
     serializer_class = EmailTokenObtainPairSerializer
+
 
 urlpatterns = [
     path("", home, name="home"),
@@ -27,7 +26,9 @@ urlpatterns = [
     path("api/", include("orders.urls")),
     path("api/", include("users.urls")),
     path("api/", include("cart.urls")),
-    path("api/auth/login/", EmailTokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path(
+        "api/auth/login/", EmailTokenObtainPairView.as_view(), name="token_obtain_pair"
+    ),
     path("api/auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 ]
 
