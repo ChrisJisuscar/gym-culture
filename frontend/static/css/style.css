@@ -182,16 +182,34 @@ input {
   font-size: .88rem
 }
 .user-cart-link {
-  display: flex;
-  gap: .5rem;
-  align-items: flex-start;
-  padding: .75rem;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  color: var(--text);
-  font-size: .82rem;
-  line-height: 1.35;
-  transition: border-color .2s, background .2s
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    gap: .5rem;
+    align-items: flex-start;
+    padding: .75rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: .82rem;
+    line-height: 1.35;
+    transition: border-color .2s, background .2s;
+}
+
+.user-cart-icon {
+    flex: 0 0 auto;
+}
+
+.user-cart-text {
+    display: block;
+    min-width: 0;
+    width: 0;
+    flex: 1 1 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
 }
 .user-cart-link:hover {
   border-color: var(--lavender);

@@ -41,12 +41,12 @@
   border-color: var(--lavender)
 }
 .customizer-layout {
-  max-width: 1400px;
-  margin: auto;
-  display: grid;
-  grid-template-columns: minmax(220px, .82fr) minmax(500px, 2.4fr) minmax(220px, .82fr);
-  gap: 12px;
-  align-items: start
+    max-width: 1400px;
+    margin: auto;
+    display: grid;
+    grid-template-columns: minmax(250px, 0.85fr) minmax(560px, 1.8fr) minmax(250px, 0.85fr);
+    gap: 16px;
+    align-items: stretch;
 }
 .panel {
   background: #100d18;
@@ -54,7 +54,7 @@
 }
 .config-panel,
 .summary-panel {
-  padding: 1.45rem
+  padding: 2rem
 }
 .panel-title {
   display: flex;
@@ -84,7 +84,7 @@
   font: 500 .62rem 'DM Mono', monospace;
   letter-spacing: .08em;
   color: var(--muted);
-  margin: 0 0 .85rem
+  margin: 0 0 1rem
 }
 .garment-options {
   display: flex;
@@ -139,12 +139,12 @@
 .color-options,
 .size-options {
   display: flex;
-  gap: .46rem;
+  gap: .65rem;
   flex-wrap: wrap
 }
 .color-option {
-  width: 1.55rem;
-  height: 1.55rem;
+  width: 1.75rem;
+  height: 1.75rem;
   padding: 0;
   background: var(--swatch);
   border: 2px solid transparent;
@@ -160,22 +160,22 @@
 .field-value,
 .stock-note,
 .editor-message {
-  font-size: .65rem;
+  font-size: .68rem;
   color: var(--muted);
-  margin: .85rem 0 0
+  margin: .95rem 0 0
 }
 .stock-note.is-error,
 .editor-message.is-error {
   color: #ef8b9a
 }
 .size-option {
-  min-width: 2.25rem;
-  padding: .5rem .35rem;
+  min-width: 2.7rem;
+  padding: .65rem .45rem;
   background: transparent;
   border: 1px solid var(--line);
   color: var(--text);
-  font: .64rem 'DM Mono', monospace;
-  cursor: pointer
+  font: .68rem 'DM Mono', monospace;
+  cursor: pointer;
 }
 .size-option.is-selected {
   border-color: var(--lavender);
@@ -193,7 +193,7 @@
 .upload-button,
 .outline-button {
   display: block;
-  padding: .72rem .65rem;
+  padding: .85rem .8rem;
   border: 1px solid var(--line);
   background: transparent;
   color: var(--text);
@@ -234,15 +234,15 @@
 .preset-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 4px
+  gap: 6px
 }
 .preset {
-  padding: .65rem .2rem;
+  padding: .8rem .3rem;
   background: #171222;
   color: var(--text);
   border: 1px solid var(--line);
-  font: 800 .51rem/.9 Outfit;
-  cursor: pointer
+  font: 800 .58rem/1 Outfit;
+  cursor: pointer;
 }
 .preset:hover {
   border-color: var(--lavender);
