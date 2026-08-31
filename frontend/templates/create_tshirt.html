@@ -221,6 +221,10 @@
           <button class="is-selected" type="button" data-side="front" role="tab" aria-selected="true">FRENTE</button><button type="button" data-side="back" role="tab" aria-selected="false">ESPALDA</button>
         </div>
         <div class="shirt-stage" id="shirt-stage">
+          <!-- Contenedor reservado para la escena 3D (Three.js).
+               En la Fase 1 permanece oculto: el personalizador 2D sigue intacto.
+               En la Fase 2 se mostrará aquí la remera 3D. -->
+          <div class="customizer-3d-container" id="customizer-3d-container" hidden></div>
           <div class="shirt" id="shirt" data-color="Negro">
             <img
               class="shirt-image"
@@ -242,7 +246,6 @@
           <button type="button" data-action="grow-height">ALTO +</button>
           <button type="button" data-action="delete">ELIMINAR</button>
         </div>
-        <button type="button" class="preview-button" id="preview-button">VER VISTA PREVIA ↗</button>
       </section>
       <aside class="summary-panel panel">
         <div class="panel-title">
@@ -291,13 +294,15 @@
       </aside>
     </div>
   </main>
-  <dialog class="preview-dialog" id="preview-dialog">
-    <button class="dialog-close" aria-label="Cerrar vista previa">×</button>
-    <h2>VISTA PREVIA</h2>
-    <div id="preview-content"></div>
-  </dialog>
   {{ variants|json_script:'product-variants' }}
 {% endblock %}
 {% block extra_js %}
   <script src="{% static 'js/customizer.js' %}" defer></script>
+  {# Importmap local: resuelve el specifier "three" usado por GLTFLoader y
+     OrbitControls vendorizados hacia el bundle local. Sin CDN. #}
+  <script type="importmap">
+    { "imports": { "three": "/static/vendor/three/three.module.min.js" } }
+  </script>
+  {# Módulo ES del visor 3D (Fase 2): carga tshirt.glb con fallback 2D. #}
+  <script type="module" src="{% static 'js/customizer-3d.js' %}"></script>
 {% endblock %}

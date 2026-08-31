@@ -41,6 +41,18 @@ if (root) {
   const recoloredImages = new Map();
   let dragging = null;
 
+  // ------------------------------------------------------------------
+  // Puente hacia el visor 3D (Fase 2). Todas las llamadas son seguras:
+  // window.GymCulture3D solo existe si customizer-3d.js cargó bien, y sus
+  // métodos son no-op cuando el modelo 3D aún no está listo.
+  // ------------------------------------------------------------------
+  const publish3DState = () => {
+    const bridge = window.GymCulture3D;
+    if (!bridge?.setColor) return;
+    bridge.setColor(state.variant.color);
+    bridge.setSide(state.side);
+  };
+
   const activeElements = () => state.garments[state.garment][state.side].elements;
   const selected = () => activeElements().find((item) => item.id === state.selectedId);
   const money = (value) => `Gs. ${Math.round(value).toLocaleString('es-PY')}`;
@@ -250,6 +262,7 @@ if (root) {
     updateSideButtons();
     updateShirtImage();
     render();
+    publish3DState();
   };
 
   const setGarment = (garment) => {
@@ -271,6 +284,7 @@ if (root) {
     updateStockMessage();
     updateShirtImage();
     updateSummary();
+    publish3DState();
   };
 
   const add = (item) => {
@@ -460,17 +474,9 @@ if (root) {
     updateUndo();
   });
 
-  const dialog = document.querySelector('#preview-dialog');
-  document.querySelector('#preview-button').addEventListener('click', () => {
-    const preview = document.querySelector('#preview-content');
-    const clone = shirt.cloneNode(true);
-    clone.className = 'preview-shirt';
-    clone.querySelector('.safe-area')?.classList.add('is-preview');
-    clone.querySelectorAll('.design-element').forEach((node) => node.classList.remove('is-selected'));
-    preview.replaceChildren(clone);
-    dialog.showModal();
-  });
-  document.querySelector('.dialog-close').addEventListener('click', () => dialog.close());
+  // NOTA: el botón "VER VISTA PREVIA" y el dialog de vista previa del editor
+  // fueron eliminados (el visor 3D ya cumple esa función). renderPreview() se
+  // conserva porque el carrito lo usa para generar preview_front/preview_back.
   const cartButton = document.querySelector('#add-cart');
   const cartNote = document.querySelector('#cart-note');
   const loginDestination = () => `/login/?next=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`;
@@ -612,6 +618,14 @@ if (root) {
   updateStockMessage();
   updateShirtImage();
   render();
+  // Publica el estado inicial al visor 3D cuando este termine de cargar
+  // (el GLB puede llegar después que customizer.js: el módulo también lee
+  // GymCultureCustomizer.color al momento de montar la prenda).
+  window.GymCultureCustomizer = {
+    get color() { return state.variant.color; },
+    get side() { return state.side; },
+  };
+  publish3DState();
   loadEditItem().catch((error) => {
     console.error(error);
     cartNote.textContent = 'No pudimos cargar la personalización.';

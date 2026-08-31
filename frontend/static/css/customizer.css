@@ -306,12 +306,53 @@
   color: var(--text)
 }
 .shirt-stage {
+  position: relative;
   flex: 1;
   min-height: 490px;
   display: grid;
   place-items: center;
   overflow: hidden;
   background: radial-gradient(ellipse at center, rgba(55, 37, 76, .65), transparent 63%), linear-gradient(135deg, #0d0b13, #16101f)
+}
+/* Contenedor de la escena 3D. Ocupa todo el stage; el visor 2D sigue en el DOM
+   y vuelve a ser visible automáticamente si el 3D falla (fallback obligatorio). */
+.customizer-3d-container {
+  position: absolute;
+  inset: 0
+}
+/* Fondo del visor 3D: oscuro, elegante, con un glow radial violáceo muy sutil
+   y un vignette para profundidad. Solo afecta al área del visor. */
+.customizer-3d-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 62% 55% at 50% 42%, rgba(124, 58, 237, .14), transparent 70%),
+    linear-gradient(180deg, #0d0b13 0%, #16101f 62%, #0b0910 100%);
+  pointer-events: none
+}
+.customizer-3d-canvas {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none
+}
+.customizer-3d-canvas:active {
+  cursor: grabbing
+}
+/* Cuando el visor 3D está activo, se oculta el mockup 2D (que permanece
+   intacto en el DOM para el fallback y para la vista previa / carrito). */
+.shirt-stage.is-3d-active .shirt {
+  visibility: hidden
+}
+.shirt-stage.is-3d-active .customizer-3d-canvas {
+  animation: customizer-3d-fade-in .4s ease
+}
+@keyframes customizer-3d-fade-in {
+  from { opacity: 0 }
+  to { opacity: 1 }
 }
 .shirt {
   position: relative;
@@ -375,12 +416,6 @@
   display: grid;
   place-items: center;
   overflow: hidden
-}
-.safe-area.is-preview {
-  border: 0
-}
-.safe-area.is-preview .safe-label {
-  display: none
 }
 .safe-label {
   font: .46rem 'DM Mono', monospace;
@@ -451,14 +486,6 @@
   border-color: var(--lavender);
   color: var(--lavender)
 }
-.preview-button {
-  align-self: center;
-  border: 0;
-  background: transparent;
-  color: var(--lavender);
-  font: .63rem 'DM Mono', monospace;
-  cursor: pointer
-}
 .summary-panel dl {
   margin: 1.5rem 0
 }
@@ -502,38 +529,6 @@
   font-size: .65rem;
   color: var(--lavender);
   text-align: center
-}
-.preview-dialog {
-  width: min(680px, 92vw);
-  color: var(--text);
-  background: #100d18;
-  border: 1px solid var(--lavender);
-  padding: 2rem
-}
-.preview-dialog::backdrop {
-  background: rgba(0, 0, 0, .75)
-}
-.preview-dialog h2 {
-  font-size: 1rem
-}
-.dialog-close {
-  float: right;
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  font-size: 2rem;
-  cursor: pointer
-}
-.preview-shirt {
-  margin: 1rem auto;
-  width: min(500px, 94%);
-  aspect-ratio: 4/5;
-  position: relative
-}
-.preview-shirt .shirt-image {
-  width: 100%;
-  height: 100%;
-  object-fit: contain
 }
 @media(max-width:1050px) {
   .customizer-layout {
@@ -683,8 +678,5 @@
   .summary-panel dd {
     max-width: 58%;
     overflow-wrap: anywhere
-  }
-  .preview-dialog {
-    padding: 1rem
   }
 }
