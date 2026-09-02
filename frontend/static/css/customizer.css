@@ -1,682 +1,97 @@
-.customizer-page {
-  padding: 150px 4.5vw 5rem;
-  background: #08070d;
-  min-height: 100vh
-}
-.customizer-intro {
-  max-width: 1400px;
-  margin: 0 auto 2.8rem
-}
-.customizer-intro h1 {
-  font-size: clamp(3.5rem, 7vw, 7rem);
-  letter-spacing: -.1em;
-  line-height: .8;
-  margin: .8rem 0 1rem
-}
-.customizer-intro h1 i {
-  font-style: normal;
-  color: var(--lavender)
-}
-.customizer-intro>p:last-child {
-  color: var(--muted);
-  margin: 0
-}
-.steps {
-  max-width: 1400px;
-  margin: 0 auto 2rem;
-  padding: 0;
-  display: flex;
-  gap: 1rem;
-  list-style: none;
-  font: 500 .63rem 'DM Mono', monospace;
-  color: var(--muted)
-}
-.steps li {
-  flex: 1;
-  border-top: 1px solid var(--line);
-  padding-top: .7rem
-}
-.steps .is-current {
-  color: var(--lavender);
-  border-color: var(--lavender)
-}
-.customizer-layout {
-    max-width: 1400px;
-    margin: auto;
-    display: grid;
-    grid-template-columns: minmax(250px, 0.85fr) minmax(560px, 1.8fr) minmax(250px, 0.85fr);
-    gap: 16px;
-    align-items: stretch;
-}
-.panel {
-  background: #100d18;
-  border: 1px solid var(--line)
-}
-.config-panel,
-.summary-panel {
-  padding: 2rem
-}
-.panel-title {
-  display: flex;
-  gap: .8rem;
-  align-items: center;
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 1rem
-}
-.panel-title span {
-  color: var(--lavender);
-  font: .65rem 'DM Mono', monospace
-}
-.panel-title h2 {
-  font-size: .72rem;
-  letter-spacing: .08em;
-  margin: 0
-}
-.config-panel section {
-  padding: 1.5rem 0;
-  border-bottom: 1px solid var(--line)
-}
-.config-panel section:last-child {
-  border: 0;
-  padding-bottom: 0
-}
-.config-panel h3 {
-  font: 500 .62rem 'DM Mono', monospace;
-  letter-spacing: .08em;
-  color: var(--muted);
-  margin: 0 0 1rem
-}
-.garment-options {
-  display: flex;
-  justify-content: center;
-  gap: .65rem
-}
-.garment-option {
-  display: flex;
-  align-items: center;
-  gap: .8rem;
-  flex: 0 1 270px;
-  padding: .72rem .82rem;
-  border: 1px solid var(--line);
-  background: #171222;
-  color: var(--text);
-  text-align: left;
-  cursor: pointer;
-  transition: transform .28s cubic-bezier(.2,.8,.2,1), border-color .28s ease, background .28s ease, box-shadow .28s ease
-}
-.garment-option.is-selected {
-  border-color: var(--lavender);
-  background: linear-gradient(135deg, #24113f, #171222);
-  box-shadow: 0 10px 28px rgba(122, 58, 237, .18)
-}
-.garment-option:hover,
-.garment-option:focus-visible {
-  transform: translateY(-3px);
-  border-color: var(--lavender);
-  outline: 0
-}
-.garment-section {
-  display: none
-}
-.garment-icon {
-  display: grid;
-  place-items: center;
-  width: 2.2rem;
-  height: 2.2rem;
-  background: var(--purple);
-  font-size: .7rem;
-  font-weight: 800
-}
-.garment-option b,
-.garment-option small {
-  display: block
-}
-.garment-option small {
-  font-size: .62rem;
-  color: var(--muted);
-  margin-top: .15rem
-}
-.color-options,
-.size-options {
-  display: flex;
-  gap: .65rem;
-  flex-wrap: wrap
-}
-.color-option {
-  width: 1.75rem;
-  height: 1.75rem;
-  padding: 0;
-  background: var(--swatch);
-  border: 2px solid transparent;
-  border-radius: 50%;
-  cursor: pointer;
-  outline: 1px solid rgba(245, 243, 255, .28);
-  outline-offset: 2px
-}
-.color-option.is-selected {
-  outline: 2px solid var(--lavender);
-  outline-offset: 3px
-}
-.field-value,
-.stock-note,
-.editor-message {
-  font-size: .68rem;
-  color: var(--muted);
-  margin: .95rem 0 0
-}
-.stock-note.is-error,
-.editor-message.is-error {
-  color: #ef8b9a
-}
-.size-option {
-  min-width: 2.7rem;
-  padding: .65rem .45rem;
-  background: transparent;
-  border: 1px solid var(--line);
-  color: var(--text);
-  font: .68rem 'DM Mono', monospace;
-  cursor: pointer;
-}
-.size-option.is-selected {
-  border-color: var(--lavender);
-  background: #24113f
-}
-.size-option.is-out-of-stock {
-  border-style: dashed;
-  border-color: rgba(239, 139, 154, .7);
-  color: #ef8b9a
-}
-.design-actions {
-  display: grid;
-  gap: .5rem
-}
-.upload-button,
-.outline-button {
-  display: block;
-  padding: .85rem .8rem;
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--text);
-  font: 500 .62rem 'DM Mono', monospace;
-  text-align: left;
-  cursor: pointer
-}
-.upload-button:hover,
-.outline-button:hover {
-  border-color: var(--lavender);
-  color: var(--lavender)
-}
-.text-controls {
-  margin-top: 1rem
-}
-.text-controls label {
-  font: .55rem 'DM Mono', monospace;
-  color: var(--muted)
-}
-.text-controls input {
-  width: 100%;
-  margin: .4rem 0;
-  padding: .6rem;
-  background: #08070d;
-  border: 1px solid var(--line);
-  color: var(--text);
-  font-size: .75rem
-}
-.text-controls button {
-  margin-right: .25rem;
-  padding: .35rem .45rem;
-  background: transparent;
-  border: 1px solid var(--line);
-  color: var(--text);
-  font-size: .58rem;
-  cursor: pointer
-}
-.preset-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px
-}
-.preset {
-  padding: .8rem .3rem;
-  background: #171222;
-  color: var(--text);
-  border: 1px solid var(--line);
-  font: 800 .58rem/1 Outfit;
-  cursor: pointer;
-}
-.preset:hover {
-  border-color: var(--lavender);
-  color: var(--lavender)
-}
-.editor-panel {
-  min-height: 720px;
-  padding: 1.45rem;
-  display: flex;
-  flex-direction: column
-}
-.garment-picker {
-  width: min(100%, 620px);
-  margin: -.2rem auto 1.45rem;
-  text-align: center
-}
-.garment-picker .eyebrow {
-  margin: 0 0 .7rem;
-  color: var(--muted)
-}
-.editor-top {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem
-}
-.editor-top p {
-  font-size: .65rem;
-  color: var(--muted);
-  margin: .45rem 0 0
-}
-.undo-controls {
-  display: flex;
-  gap: .4rem
-}
-.undo-controls button {
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  font: .55rem 'DM Mono', monospace;
-  cursor: pointer
-}
-.undo-controls button:disabled {
-  opacity: .35
-}
-.side-switch {
-  align-self: center;
-  display: flex;
-  margin: 1.6rem 0 .9rem;
-  border: 1px solid var(--line)
-}
-.side-switch button {
-  padding: .6rem 1.1rem;
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  font: .62rem 'DM Mono', monospace;
-  cursor: pointer
-}
-.side-switch .is-selected {
-  background: #24113f;
-  color: var(--text)
-}
-.shirt-stage {
-  position: relative;
-  flex: 1;
-  min-height: 490px;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  background: radial-gradient(ellipse at center, rgba(55, 37, 76, .65), transparent 63%), linear-gradient(135deg, #0d0b13, #16101f)
-}
-/* Contenedor de la escena 3D. Ocupa todo el stage; el visor 2D sigue en el DOM
-   y vuelve a ser visible automáticamente si el 3D falla (fallback obligatorio). */
-.customizer-3d-container {
-  position: absolute;
-  inset: 0
-}
-/* Fondo del visor 3D: oscuro, elegante, con un glow radial violáceo muy sutil
-   y un vignette para profundidad. Solo afecta al área del visor. */
-.customizer-3d-container::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse 62% 55% at 50% 42%, rgba(124, 58, 237, .14), transparent 70%),
-    linear-gradient(180deg, #0d0b13 0%, #16101f 62%, #0b0910 100%);
-  pointer-events: none
-}
-.customizer-3d-canvas {
-  position: relative;
-  display: block;
-  width: 100%;
-  height: 100%;
-  cursor: grab;
-  touch-action: none
-}
-.customizer-3d-canvas:active {
-  cursor: grabbing
-}
-/* Cuando el visor 3D está activo, se oculta el mockup 2D (que permanece
-   intacto en el DOM para el fallback y para la vista previa / carrito). */
-.shirt-stage.is-3d-active .shirt {
-  visibility: hidden
-}
-.shirt-stage.is-3d-active .customizer-3d-canvas {
-  animation: customizer-3d-fade-in .4s ease
-}
-@keyframes customizer-3d-fade-in {
-  from { opacity: 0 }
-  to { opacity: 1 }
-}
-.shirt {
-  position: relative;
-  width: min(620px, 86%);
-  aspect-ratio: 4/5;
-  isolation: isolate
-}
-/* El área toma todo el torso: deja fuera mangas y cuello, pero llega al ruedo. */
-.shirt[data-garment="tshirt"] .safe-area {
-  left: 26%;
-  top: 28%;
-  width: 48%;
-  height: 55%
-}
-/* En el frente se permite imprimir también sobre el bolsillo canguro. */
-.shirt[data-garment="hoodie"][data-side="front"] .safe-area {
-  left: 26%;
-  top: 30%;
-  width: 48%;
-  height: 55%
-}
-.shirt[data-garment="hoodie"][data-side="back"] .safe-area {
-  left: 26%;
-  top: 30%;
-  width: 48%;
-  height: 55%
-}
-.shirt-image {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  filter: var(--shirt-filter, none);
-  transition: filter .25s ease, transform .35s cubic-bezier(.2,.8,.2,1)
-}
-.shirt[data-garment="tshirt"][data-color="Blanco"] {
-  --shirt-filter: invert(1) grayscale(1) brightness(1.12) contrast(.72)
-}
-.shirt[data-garment="tshirt"][data-color="Gris"] {
-  --shirt-filter: invert(.82) grayscale(1) brightness(.78) contrast(.85)
-}
-.shirt[data-garment="tshirt"][data-color="Violeta"] {
-  --shirt-filter: invert(.72) sepia(.75) saturate(5) hue-rotate(222deg) brightness(.62)
-}
-.shirt[data-garment="tshirt"][data-color="Azul oscuro"] {
-  --shirt-filter: invert(.35) sepia(.9) saturate(3) hue-rotate(175deg) brightness(.5)
-}
-.shirt[data-garment="tshirt"][data-color="Rojo"] {
-  --shirt-filter: invert(.58) sepia(1) saturate(4) hue-rotate(304deg) brightness(.6)
-}
-.shirt[data-garment="tshirt"][data-color="Verde oscuro"] {
-  --shirt-filter: invert(.42) sepia(.9) saturate(2.7) hue-rotate(92deg) brightness(.47)
-}
-.safe-area {
-  position: absolute;
-  left: 26%;
-  top: 28%;
-  width: 48%;
-  height: 60%;
-  border: 1px dashed rgba(192, 132, 252, .75);
-  display: grid;
-  place-items: center;
-  overflow: hidden
-}
-.safe-label {
-  font: .46rem 'DM Mono', monospace;
-  letter-spacing: .08em;
-  color: rgba(219, 185, 255, .88);
-  text-align: center;
-  pointer-events: none
-}
-.design-element {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  touch-action: none;
-  cursor: move;
-  user-select: none;
-  max-width: 100%;
-  max-height: 100%;
-  z-index: 1
-}
-.design-element.is-selected {
-  outline: 1px solid var(--lavender);
-  outline-offset: 4px
-}
-.design-element img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  pointer-events: none;
-  mix-blend-mode: screen
-}
-.design-element.text-element {
-  display: grid;
-  place-items: center;
-  min-width: 42px;
-  min-height: 26px;
-  color: #f9f7ff;
-  text-align: center;
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1;
-  white-space: pre-wrap;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, .2)
-}
-.element-controls {
-  align-self: center;
-  display: flex;
-  gap: .45rem;
-  align-items: center;
-  flex-wrap: wrap;
-  margin: 1rem 0
-}
-.element-controls span {
-  font: .52rem 'DM Mono', monospace;
-  color: var(--muted);
-  margin-right: .4rem
-}
-.element-controls button {
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--text);
-  font: .58rem 'DM Mono', monospace;
-  padding: .45rem .55rem;
-  cursor: pointer
-}
-.element-controls button:hover {
-  border-color: var(--lavender);
-  color: var(--lavender)
-}
-.summary-panel dl {
-  margin: 1.5rem 0
-}
-.summary-panel dl div {
-  display: flex;
-  justify-content: space-between;
-  gap: .7rem;
-  padding: .58rem 0;
-  border-bottom: 1px solid var(--line)
-}
-.summary-panel dt {
-  font: .57rem 'DM Mono', monospace;
-  color: var(--muted)
-}
-.summary-panel dd {
-  margin: 0;
-  text-align: right;
-  font-size: .72rem
-}
-.price-list {
-  border-top: 1px solid var(--line);
-  padding-top: 1rem
-}
-.price-list p {
-  display: flex;
-  justify-content: space-between;
-  font-size: .7rem;
-  color: var(--muted)
-}
-.price-list .total {
-  color: var(--text);
-  font-weight: 700;
-  border-top: 1px solid var(--line);
-  padding-top: 1rem
-}
-.add-cart {
-  width: 100%;
-  margin-top: 1rem
-}
-.cart-note {
-  font-size: .65rem;
-  color: var(--lavender);
-  text-align: center
-}
-@media(max-width:1050px) {
-  .customizer-layout {
-    grid-template-columns: minmax(220px, 250px) minmax(0, 1fr)
-  }
-  .summary-panel {
-    grid-column: 1/-1;
-    display: grid;
-    grid-template-columns: 1fr 1.4fr 1fr;
-    gap: 1.5rem;
-    align-items: end
-  }
-  .summary-panel .panel-title {
-    grid-row: 1/3
-  }
-  .summary-panel dl,
-  .summary-panel .price-list {
-    margin: 0
-  }
-  .summary-panel .add-cart {
-    margin: 0
-  }
-  .cart-note {
-    grid-column: 3
-  }
-}
-@media(max-width:720px) {
-  .customizer-page {
-    padding: 110px 1rem 3rem
-  }
-  .steps {
-    gap: .45rem;
-    overflow-x: auto;
-    overscroll-behavior-x: contain
-  }
-  .steps li {
-    min-width: 80px;
-    font-size: .52rem
-  }
-  .steps li span {
-    display: block;
-    margin-top: .15rem
-  }
-  .customizer-layout {
-    display: flex;
-    flex-direction: column
-  }
-  .panel {
-    width: 100%
-  }
-  .config-panel {
-    order: 1
-  }
-  .editor-panel {
-    order: 2;
-    min-height: 610px
-  }
-  .garment-picker {
-    margin-bottom: 1.2rem
-  }
-  .garment-options {
-    gap: .45rem
-  }
-  .garment-option {
-    min-width: 0;
-    padding: .62rem
-  }
-  .summary-panel {
-    order: 3;
-    display: block
-  }
-  .summary-panel dl {
-    margin: 1.5rem 0
-  }
-  .summary-panel .add-cart {
-    margin-top: 1rem
-  }
-  .shirt-stage {
-    min-height: 430px
-  }
-  .shirt {
-    width: min(460px, 96%)
-  }
-  .element-controls {
-    flex-wrap: wrap;
-    justify-content: center
-  }
-  .element-controls span {
-    flex-basis: 100%;
-    text-align: center;
-    margin: 0
-  }
-  .customizer-intro h1 {
-    font-size: clamp(3.3rem, 17vw, 5rem)
-  }
-}
-@media(max-width:480px) {
-  .customizer-page {
-    padding: 90px .75rem 2rem
-  }
-  .customizer-intro {
-    margin-bottom: 2rem
-  }
-  .steps {
-    margin-bottom: 1.5rem
-  }
-  .steps li {
-    min-width: 72px
-  }
-  .config-panel,
-  .summary-panel,
-  .editor-panel {
-    padding: 1rem
-  }
-  .editor-top {
-    flex-direction: column
-  }
-  .undo-controls {
-    flex-wrap: wrap
-  }
-  .side-switch {
-    width: 100%
-  }
-  .side-switch button {
-    flex: 1;
-    padding-right: .4rem;
-    padding-left: .4rem
-  }
-  .shirt-stage {
-    min-height: 360px
-  }
-  .shirt {
-    width: 100%
-  }
-  .garment-option {
-    align-items: flex-start
-  }
-  .garment-option small {
-    line-height: 1.25
-  }
-  .safe-label {
-    font-size: .4rem
-  }
-  .element-controls button {
-    min-height: 36px
-  }
-  .summary-panel dd {
-    max-width: 58%;
-    overflow-wrap: anywhere
-  }
+.customizer-page { min-height: 100vh; padding: 150px clamp(1rem, 3vw, 3.5rem) 5rem; background: #08070d }
+.customizer-intro { max-width: 1600px; margin: 0 auto 2.8rem }
+.customizer-intro h1 { margin: .8rem 0 1rem; font-size: clamp(3.5rem, 7vw, 7rem); letter-spacing: -.1em; line-height: .8 }
+.customizer-intro h1 i { color: var(--lavender); font-style: normal }
+.customizer-intro > p:last-child, .editor-top p { margin: 0; color: var(--muted) }
+.customizer-layout { display: grid; grid-template-columns: minmax(240px, 300px) minmax(500px, 1fr) minmax(240px, 300px); gap: clamp(12px, 1.4vw, 22px); align-items: start; max-width: 1600px; margin: auto }
+.panel { min-width: 0; border: 1px solid var(--line); background: #100d18 }
+.config-panel, .summary-panel { padding: 2rem }
+.panel-title { padding-bottom: 1rem; border-bottom: 1px solid var(--line) }
+.panel-title h2 { margin: 0; font-size: .72rem; letter-spacing: .08em }
+.config-panel section { padding: 1.5rem 0; border-bottom: 1px solid var(--line) }
+.config-panel section:last-child { border: 0 }
+.config-panel h3, .summary-panel h3 { margin: 0 0 1rem; color: var(--muted); font: 500 .62rem 'DM Mono', monospace; letter-spacing: .08em }
+.color-options, .size-options { display: flex; flex-wrap: wrap; gap: .7rem }
+.color-option { width: 1.8rem; height: 1.8rem; padding: 0; border: 2px solid transparent; border-radius: 50%; outline: 1px solid rgba(245,243,255,.28); outline-offset: 2px; background: var(--swatch); cursor: pointer }
+.color-option.is-selected { outline: 2px solid var(--lavender); outline-offset: 3px }
+.size-option { min-width: 2.7rem; padding: .65rem .45rem; border: 1px solid var(--line); background: transparent; color: var(--text); font: .68rem 'DM Mono', monospace; cursor: pointer }
+.size-option.is-selected { border-color: var(--lavender); background: #24113f }
+.size-option.is-out-of-stock { border-style: dashed; border-color: rgba(239,139,154,.7); color: #ef8b9a }
+.field-value, .stock-note { margin: .95rem 0 0; color: var(--muted); font-size: .68rem }
+.stock-note.is-error, .viewer-status.is-error { color: #ef8b9a }
+.editor-panel { display: flex; min-height: clamp(650px, 72vh, 860px); padding: 1.45rem; flex-direction: column }
+.editor-top { padding-bottom: 1rem }
+.editor-top p { margin-top: .45rem; font-size: .65rem }
+.shirt-stage { position: relative; display: grid; flex: 1; min-height: 590px; overflow: hidden; place-items: center; background: radial-gradient(ellipse at center, rgba(55,37,76,.65), transparent 63%), linear-gradient(135deg,#0d0b13,#16101f) }
+.customizer-3d-container { position: absolute; inset: 0 }
+.customizer-3d-container::before { position: absolute; inset: 0; content: ''; pointer-events: none; background: radial-gradient(ellipse 62% 55% at 50% 42%, rgba(124,58,237,.14), transparent 70%), linear-gradient(180deg,#0d0b13 0%,#16101f 62%,#0b0910 100%) }
+.customizer-3d-canvas { position: relative; display: block; width: 100%; height: 100%; cursor: grab; touch-action: none }
+.customizer-3d-canvas:active { cursor: grabbing }
+.viewer-status { z-index: 1; max-width: 28rem; padding: .8rem 1rem; color: var(--muted); font: .68rem 'DM Mono', monospace; text-align: center; pointer-events: none }
+.product-options { padding: 1.35rem 0; border-bottom: 1px solid var(--line) }
+.summary-panel dl { margin: 1.5rem 0 }
+.summary-panel dl div { display: flex; justify-content: space-between; gap: .7rem; padding: .58rem 0; border-bottom: 1px solid var(--line) }
+.summary-panel dt { color: var(--muted); font: .57rem 'DM Mono', monospace }
+.summary-panel dd { margin: 0; font-size: .72rem; text-align: right }
+.price-list { padding-top: 1rem; border-top: 1px solid var(--line) }
+.price-list p { display: flex; justify-content: space-between; color: var(--muted); font-size: .7rem }
+.price-list .total { padding-top: 1rem; border-top: 1px solid var(--line); color: var(--text); font-weight: 700 }
+.add-cart { width: 100%; margin-top: 1rem }
+.cart-note { color: var(--lavender); font-size: .65rem; text-align: center }
+.control-label, .range-field, .color-field { display: flex; justify-content: space-between; margin: .8rem 0 .4rem; color: var(--muted); font: 500 .56rem 'DM Mono', monospace; letter-spacing: .06em }
+.editor-input { width: 100%; min-height: 42px; padding: .7rem .75rem; border: 1px solid var(--line); border-radius: 0; outline: 0; background: #08070d; color: var(--text) }
+.editor-input:focus-visible, input[type="range"]:focus-visible, input[type="color"]:focus-visible { outline: 2px solid var(--lavender); outline-offset: 2px }
+.tool-button { display: flex; width: 100%; min-height: 44px; align-items: center; justify-content: center; gap: .55rem; padding: .75rem; border: 1px solid var(--line); background: transparent; color: var(--text); font: 500 .62rem 'DM Mono', monospace; cursor: pointer; transition: border-color .2s, background .2s, color .2s, transform .2s }
+.tool-button svg { width: 1rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8 }
+.tool-button:hover, .tool-button:focus-visible { border-color: var(--lavender); color: var(--lavender); outline: 0 }
+.tool-button:active { transform: translateY(1px) }
+.tool-button:disabled { opacity: .45; cursor: not-allowed }
+.tool-button-primary { border-color: var(--purple); background: var(--purple); color: #fff }
+.tool-button-primary:hover, .tool-button-primary:focus-visible { background: #6d28d9; color: #fff }
+.tool-button-secondary { margin-top: .65rem; background: #171222 }
+.tool-button-danger { border-color: rgba(239,139,154,.5); color: #ef8b9a }
+.tool-button-danger:hover, .tool-button-danger:focus-visible { border-color: #ef8b9a; color: #ffb1bd }
+.tool-feedback { max-width: 100%; margin: .7rem 0 0; overflow-wrap: anywhere; color: var(--muted); font-size: .62rem; line-height: 1.45 }
+.tool-feedback.is-error { color: #ef8b9a }
+.config-panel .selection-panel { margin-top: .25rem; padding-right: .85rem; padding-left: .85rem; border: 1px solid rgba(192,132,252,.3); background: rgba(124,58,237,.07) }
+.selection-panel input[type="range"] { width: 100%; accent-color: var(--lavender) }
+.color-field { align-items: center }
+.color-field input { width: 42px; height: 32px; padding: 2px; border: 1px solid var(--line); background: #08070d; cursor: pointer }
+.selection-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: 1rem }
+.selection-actions .tool-button { margin: 0 }
+.customizer-3d-container.is-placing .customizer-3d-canvas { cursor: crosshair }
+.customizer-3d-container.is-dragging-design .customizer-3d-canvas { cursor: grabbing }
+@media (max-width: 1200px) and (min-width: 961px) {
+  .customizer-page { padding-right: 1rem; padding-left: 1rem }
+  .customizer-layout { grid-template-columns: minmax(210px, 250px) minmax(440px, 1fr) minmax(210px, 250px); gap: 12px }
+  .config-panel, .summary-panel { padding: 1.25rem }
+  .editor-panel { min-height: clamp(620px, 76vh, 760px); padding: 1rem }
+  .shirt-stage { min-height: 540px }
+}
+@media (max-width: 960px) {
+  .customizer-layout { grid-template-columns: minmax(0, 1fr) minmax(250px, .72fr) }
+  .editor-panel { grid-column: 1 / -1; grid-row: 1; min-height: 640px }
+  .config-panel { grid-column: 1; grid-row: 2 }
+  .summary-panel { grid-column: 2; grid-row: 2 }
+  .shirt-stage { min-height: 540px }
+}
+@media (max-width: 680px) {
+  .customizer-page { padding: 110px 1rem 3rem }
+  .customizer-layout { display: flex; flex-direction: column; gap: 14px }
+  .panel { width: 100% }
+  .editor-panel { min-height: 590px; order: 1 }
+  .config-panel { order: 2 }
+  .summary-panel { display: block; order: 3 }
+  .summary-panel dl { margin: 1.5rem 0 }
+  .shirt-stage { min-height: 500px }
+  .customizer-intro h1 { font-size: clamp(3.3rem,17vw,5rem) }
+}
+@media (max-width: 480px) {
+  .customizer-page { padding: 90px .75rem 2rem }
+  .customizer-intro { margin-bottom: 2rem }
+  .config-panel, .summary-panel, .editor-panel { padding: 1rem }
+  .editor-panel { min-height: 500px }
+  .shirt-stage { min-height: 410px }
+  .summary-panel dd { max-width: 58%; overflow-wrap: anywhere }
+  .selection-actions { grid-template-columns: 1fr }
 }

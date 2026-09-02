@@ -1,292 +1,103 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Creá tu remera — GYM CULTURE{% endblock %}
-{% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/customizer.css' %}">
-{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/customizer.css' %}">{% endblock %}
 {% block content %}
   {% include 'components/navbar.html' %}
   <main class="customizer-page">
     <header class="customizer-intro">
       <p class="eyebrow">CUSTOM LAB</p>
       <h1>CREÁ TU <i>ESTILO.</i></h1>
-      <p>Personalizá tu prenda y hacela única.</p>
+      <p>Explorá la remera en 360° y elegí tu color.</p>
     </header>
-    <div
-      class="customizer-layout"
-      data-product-id="{{ product.id|default:'' }}"
-      data-price="{{ product.price|default:'89000' }}"
-      data-tshirt-front-image="{% static 'images/customizer/tshirt-front.jpg' %}"
-      data-tshirt-back-image="{% static 'images/customizer/tshirt-back.jpg' %}"
-      data-hoodie-front-image="{% static 'images/customizer/hoodie-front.jpg' %}"
-      data-hoodie-back-image="{% static 'images/customizer/hoodie-back.jpg' %}"
-    >
+    <div class="customizer-layout" data-product-id="{{ product.id|default:'' }}" data-product-name="{{ product.name|default:'Remera Oversize' }}" data-price="{{ product.price|default:'89000' }}">
       <aside class="config-panel panel">
-        <div class="panel-title">
-          <h2>EDITOR</h2>
-        </div>
-        <section class="garment-section">
-          <h3>PRENDA</h3>
-          <div class="garment-options" role="radiogroup" aria-label="Tipo de prenda">
-            <button
-              class="garment-option is-selected"
-              type="button"
-              data-garment="tshirt"
-              data-label="{{ product.name|default:'Remera Oversize' }}"
-              role="radio"
-              aria-checked="true"
-            >
-              <span class="garment-icon">GC</span>
-              <span>
-                <b>{{ product.name|default:'Remera Oversize' }}</b>
-                <small>Amplio · algodón premium</small>
-              </span>
-            </button>
-            <button
-              class="garment-option"
-              type="button"
-              data-garment="hoodie"
-              data-label="Hoodie"
-              role="radio"
-              aria-checked="false"
-            >
-              <span class="garment-icon">GC</span>
-              <span>
-                <b>Hoodie</b>
-                <small>Frente y espalda personalizables</small>
-              </span>
-            </button>
-          </div>
-        </section>
-        <section>
-          <h3>COLOR</h3>
-          <div class="color-options" role="radiogroup" aria-label="Color de la remera">
-            <button
-              class="color-option is-selected"
-              data-color="Negro"
-              style="--swatch:#111015"
-              aria-label="Negro"
-              role="radio"
-              aria-checked="true"
-            ></button><button
-  class="color-option"
-  data-color="Blanco"
-  style="--swatch:#e9e7e4"
-  aria-label="Blanco"
-  role="radio"
-  aria-checked="false"
-></button><button
-  class="color-option"
-  data-color="Gris"
-  style="--swatch:#7a7780"
-  aria-label="Gris"
-  role="radio"
-  aria-checked="false"
-></button><button
-  class="color-option"
-  data-color="Violeta"
-  style="--swatch:#7c3aed"
-  aria-label="Violeta"
-  role="radio"
-  aria-checked="false"
-></button><button
-  class="color-option"
-  data-color="Azul oscuro"
-  style="--swatch:#182238"
-  aria-label="Azul oscuro"
-  role="radio"
-  aria-checked="false"
-></button><button
-  class="color-option"
-  data-color="Rojo"
-  style="--swatch:#9f233d"
-  aria-label="Rojo"
-  role="radio"
-  aria-checked="false"
-></button><button
-  class="color-option"
-  data-color="Verde oscuro"
-  style="--swatch:#19382e"
-  aria-label="Verde oscuro"
-  role="radio"
-  aria-checked="false"
-></button>
-          </div>
-          <p class="field-value" id="selected-color">Negro</p>
-        </section>
-        <section>
-          <h3>TALLA</h3>
-          <div class="size-options" role="radiogroup" aria-label="Talla">
-            <button class="size-option" data-size="S" role="radio">
-              S
-            </button>
-            <button class="size-option" data-size="M" role="radio">
-              M
-            </button>
-            <button class="size-option" data-size="L" role="radio">
-              L
-            </button>
-            <button
-              class="size-option is-selected"
-              data-size="XL"
-              role="radio"
-              aria-checked="true"
-            >
-              XL
-            </button>
-            <button class="size-option" data-size="2XL" role="radio">
-              2XL
-            </button>
-          </div>
-          <p class="stock-note" id="stock-note">Elegí una talla para continuar.</p>
-        </section>
+        <div class="panel-title"><h2>PERSONALIZACIÓN</h2></div>
         <section>
           <h3>DISEÑO</h3>
-          <div class="design-actions">
-            <label class="upload-button" for="image-upload">
-              + SUBIR IMAGEN
-            </label>
-            <input
-              id="image-upload"
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              hidden
-            >
-            <button
-              type="button"
-              class="outline-button"
-              id="add-text"
-            >
-              + AGREGAR TEXTO
-            </button>
-          </div>
-          <p class="editor-message" id="upload-message" role="status"></p>
-          <div class="text-controls" id="text-controls" hidden>
-            <label for="text-content">TEXTO</label>
-            <input
-              id="text-content"
-              maxlength="40"
-              value="GYM CULTURE"
-            >
-            <div>
-              <button type="button" data-font="Outfit">
-                OUTFIT
-              </button>
-              <button type="button" data-font="DM Mono">
-                MONO
-              </button>
-              <button type="button" id="text-bold">
-                <b>B</b>
-              </button>
-            </div>
-          </div>
+          <label class="tool-button tool-button-primary" for="design-upload">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4m0 0L7 9m5-5 5 5M5 14v5h14v-5"/></svg>
+            SUBIR DISEÑO
+          </label>
+          <input id="design-upload" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+          <p class="tool-feedback" id="design-feedback" role="status">PNG, JPG o WebP · máximo 10 MB</p>
         </section>
         <section>
-          <h3>AGREGAR TEXTO</h3>
-          <div class="preset-grid">
-            <button type="button" class="preset" data-preset="BUILT\nDIFFERENT">
-              BUILT
-              <br>
-              DIFFERENT
-            </button><button type="button" class="preset" data-preset="NO DAYS\nOFF">
-              NO DAYS
-              <br>
-              OFF
-            </button><button type="button" class="preset" data-preset="GYM\nCULTURE">
-              GYM
-              <br>
-              CULTURE
-            </button><button type="button" class="preset" data-preset="NO PAIN NO GAIN">NO PAIN<br>NO GAIN</button><button type="button" class="preset" data-preset="STAY HARD">STAY HARD</button><button type="button" class="preset" data-preset="DISCIPLINE OVER MOTIVATION">DISCIPLINE OVER<br>MOTIVATION</button>
+          <h3>TEXTO</h3>
+          <label class="control-label" for="new-text">TEXTO PERSONALIZADO</label>
+          <input class="editor-input" id="new-text" type="text" maxlength="50" value="GYM CULTURE">
+          <button class="tool-button tool-button-secondary" id="add-3d-text" type="button">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 5h14M12 5v14M8 19h8"/></svg>
+            AGREGAR TEXTO
+          </button>
+        </section>
+        <section class="selection-panel" id="selection-panel" hidden>
+          <h3 id="selection-title">ELEMENTO SELECCIONADO</h3>
+          <div id="text-properties" hidden>
+            <label class="control-label" for="selected-text">CONTENIDO</label>
+            <input class="editor-input" id="selected-text" type="text" maxlength="50">
+            <label class="control-label" for="text-font">FUENTE</label>
+            <select class="editor-input" id="text-font">
+              <option value="Outfit">Outfit</option>
+              <option value="Arial">Arial</option>
+              <option value="Impact">Impact</option>
+              <option value="DM Mono">DM Mono</option>
+            </select>
+            <label class="color-field" for="text-color"><span>COLOR</span><input id="text-color" type="color" value="#ffffff"></label>
+          </div>
+          <label class="range-field" for="design-scale"><span>TAMAÑO</span><output id="scale-value">100%</output></label>
+          <input id="design-scale" type="range" min="0.35" max="2.5" step="0.05" value="1">
+          <label class="range-field" for="design-rotation"><span>ROTACIÓN</span><output id="rotation-value">0°</output></label>
+          <input id="design-rotation" type="range" min="-180" max="180" step="1" value="0">
+          <div class="selection-actions">
+            <button class="tool-button tool-button-secondary" id="reposition-design" type="button">REUBICAR</button>
+            <button class="tool-button tool-button-danger" id="delete-design" type="button">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5"/></svg>
+              ELIMINAR
+            </button>
           </div>
         </section>
       </aside>
-      <section class="editor-panel panel">
-        <div class="garment-picker">
-          <p class="eyebrow">ELEGÍ TU PRENDA</p>
-          <div class="garment-options" role="radiogroup" aria-label="Tipo de prenda">
-            <button class="garment-option is-selected" type="button" data-garment="tshirt" data-label="{{ product.name|default:'Remera Oversize' }}" role="radio" aria-checked="true"><span class="garment-icon">GC</span><span><b>{{ product.name|default:'Remera Oversize' }}</b><small>Amplio · algodón premium</small></span></button>
-            <button class="garment-option" type="button" data-garment="hoodie" data-label="Hoodie" role="radio" aria-checked="false"><span class="garment-icon">GC</span><span><b>Hoodie</b><small>Frente y espalda personalizables</small></span></button>
-          </div>
-        </div>
-        <div class="editor-top">
-          <div>
-            <span class="eyebrow">PERSONALIZADOR 2D</span>
-            <p id="editor-empty">Todavía no agregaste ningún diseño.</p>
-          </div>
-          <div class="undo-controls">
-            <button type="button" id="undo" disabled>↶ DESHACER</button><button type="button" id="redo" disabled>↷ REHACER</button>
-          </div>
-        </div>
-        <div class="side-switch" role="tablist">
-          <button class="is-selected" type="button" data-side="front" role="tab" aria-selected="true">FRENTE</button><button type="button" data-side="back" role="tab" aria-selected="false">ESPALDA</button>
-        </div>
+      <section class="editor-panel panel" aria-labelledby="viewer-title">
+        <div class="editor-top"><div><span class="eyebrow" id="viewer-title">VISOR 3D</span><p>Arrastrá para rotar · rueda o gesto de pinza para acercar</p></div></div>
         <div class="shirt-stage" id="shirt-stage">
-          <!-- Contenedor reservado para la escena 3D (Three.js).
-               En la Fase 1 permanece oculto: el personalizador 2D sigue intacto.
-               En la Fase 2 se mostrará aquí la remera 3D. -->
-          <div class="customizer-3d-container" id="customizer-3d-container" hidden></div>
-          <div class="shirt" id="shirt" data-color="Negro">
-            <img
-              class="shirt-image"
-              id="shirt-image"
-              src="{% static 'images/customizer/tshirt-front.jpg' %}"
-              alt="Remera oversize negra, vista frontal"
-              draggable="false"
-            >
-            <div class="safe-area" id="safe-area"><span class="safe-label">ZONA SEGURA DE IMPRESIÓN</span></div>
-          </div>
-        </div>
-        <div class="element-controls" id="element-controls" hidden>
-          <span>ELEMENTO SELECCIONADO</span>
-          <button type="button" data-action="rotate-left">↶</button>
-          <button type="button" data-action="rotate-right">↷</button>
-          <button type="button" data-action="shrink-width">ANCHO −</button>
-          <button type="button" data-action="grow-width">ANCHO +</button>
-          <button type="button" data-action="shrink-height">ALTO −</button>
-          <button type="button" data-action="grow-height">ALTO +</button>
-          <button type="button" data-action="delete">ELIMINAR</button>
+          <div class="customizer-3d-container" id="customizer-3d-container" aria-label="Remera 3D interactiva"></div>
+          <p class="viewer-status" id="viewer-status" role="status">Cargando remera 3D…</p>
         </div>
       </section>
       <aside class="summary-panel panel">
-        <div class="panel-title">
-          <span>03</span>
-          <h2 id="summary-title">TU REMERA</h2>
-        </div>
+        <div class="panel-title"><h2>TU REMERA</h2></div>
+        <section class="product-options">
+          <h3>COLOR</h3>
+          <div class="color-options" role="radiogroup" aria-label="Color base de la remera">
+            <button class="color-option is-selected" type="button" data-color="Negro" data-hex="#111015" style="--swatch:#111015" aria-label="Negro" role="radio" aria-checked="true"></button>
+            <button class="color-option" type="button" data-color="Blanco" data-hex="#ebe9e4" style="--swatch:#ebe9e4" aria-label="Blanco" role="radio" aria-checked="false"></button>
+            <button class="color-option" type="button" data-color="Gris" data-hex="#7a7780" style="--swatch:#7a7780" aria-label="Gris" role="radio" aria-checked="false"></button>
+            <button class="color-option" type="button" data-color="Azul" data-hex="#244a8f" style="--swatch:#244a8f" aria-label="Azul" role="radio" aria-checked="false"></button>
+            <button class="color-option" type="button" data-color="Rojo" data-hex="#9f233d" style="--swatch:#9f233d" aria-label="Rojo" role="radio" aria-checked="false"></button>
+            <button class="color-option" type="button" data-color="Verde" data-hex="#276749" style="--swatch:#276749" aria-label="Verde" role="radio" aria-checked="false"></button>
+          </div>
+          <p class="field-value" id="selected-color">Negro</p>
+        </section>
+        <section class="product-options">
+          <h3>TALLA</h3>
+          <div class="size-options" role="radiogroup" aria-label="Talla">
+            <button class="size-option" type="button" data-size="S" role="radio" aria-checked="false">S</button>
+            <button class="size-option" type="button" data-size="M" role="radio" aria-checked="false">M</button>
+            <button class="size-option" type="button" data-size="L" role="radio" aria-checked="false">L</button>
+            <button class="size-option is-selected" type="button" data-size="XL" role="radio" aria-checked="true">XL</button>
+            <button class="size-option" type="button" data-size="2XL" role="radio" aria-checked="false">2XL</button>
+          </div>
+          <p class="stock-note" id="stock-note">Elegí una talla para continuar.</p>
+        </section>
         <dl>
-          <div>
-            <dt>MODELO</dt>
-            <dd id="summary-product">
-              {{ product.name|default:'Remera Oversize' }}
-            </dd>
-          </div>
-          <div>
-            <dt>COLOR</dt>
-            <dd id="summary-color">
-              Negro
-            </dd>
-          </div>
-          <div>
-            <dt>TALLA</dt>
-            <dd id="summary-size">
-              XL
-            </dd>
-          </div>
-          <div>
-            <dt>VISTA</dt>
-            <dd id="summary-side">
-              Frente
-            </dd>
-          </div>
-          <div>
-            <dt>DISEÑO</dt>
-            <dd id="summary-design">
-              Sin diseño
-            </dd>
-          </div>
+          <div><dt>MODELO</dt><dd id="summary-product">{{ product.name|default:'Remera Oversize' }}</dd></div>
+          <div><dt>COLOR</dt><dd id="summary-color">Negro</dd></div>
+          <div><dt>TALLA</dt><dd id="summary-size">XL</dd></div>
+          <div><dt>DISEÑO</dt><dd id="summary-design">Lisa</dd></div>
         </dl>
         <div class="price-list">
           <p><span>Precio base</span><b id="base-price">Gs. —</b></p>
-          <p><span>Diseño</span><b id="design-price">Gs. 0</b></p>
           <p class="total"><span>TOTAL</span><b id="total-price">Gs. —</b></p>
         </div>
         <button type="button" class="button button-accent add-cart" id="add-cart">AGREGAR AL CARRITO</button>
@@ -298,11 +109,6 @@
 {% endblock %}
 {% block extra_js %}
   <script src="{% static 'js/customizer.js' %}" defer></script>
-  {# Importmap local: resuelve el specifier "three" usado por GLTFLoader y
-     OrbitControls vendorizados hacia el bundle local. Sin CDN. #}
-  <script type="importmap">
-    { "imports": { "three": "/static/vendor/three/three.module.min.js" } }
-  </script>
-  {# Módulo ES del visor 3D (Fase 2): carga tshirt.glb con fallback 2D. #}
+  <script type="importmap">{ "imports": { "three": "/static/vendor/three/three.module.min.js" } }</script>
   <script type="module" src="{% static 'js/customizer-3d.js' %}"></script>
 {% endblock %}
