@@ -1,7 +1,10 @@
+from decimal import Decimal
+
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from .models import User
+from orders.models import Order
 
 
 class AuthenticationApiTests(APITestCase):
@@ -110,3 +113,38 @@ class AuthenticationApiTests(APITestCase):
             ).status_code,
             status.HTTP_401_UNAUTHORIZED,
         )
+
+
+class BackofficeCustomerTests(APITestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(username="customer-admin", email="admin-customers@example.com", password="StrongPass123!", role=User.Role.ADMIN)
+        self.customer = User.objects.create_user(username="juan", first_name="Juan", last_name="Pérez", email="juan@example.com", password="StrongPass123!")
+        self.other = User.objects.create_user(username="maria", first_name="María", last_name="López", email="maria@example.com", password="StrongPass123!", is_active=False)
+        self.order = Order.objects.create(user=self.customer, contact_first_name="Juan", contact_last_name="Pérez", contact_email=self.customer.email, total=Decimal("250000"), subtotal=Decimal("250000"))
+        Order.objects.create(user=self.customer, status=Order.Status.CANCELLED, total=Decimal("90000"), subtotal=Decimal("90000"))
+
+    def test_customer_receives_403(self):
+        self.client.force_authenticate(self.customer)
+        self.assertEqual(self.client.get("/api/backoffice/customers/").status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(self.client.get(f"/api/backoffice/customers/{self.customer.id}/").status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_lists_searches_and_reads_customer_summary(self):
+        self.client.force_authenticate(self.admin)
+        listing = self.client.get("/api/backoffice/customers/?search=juan@example.com")
+        self.assertEqual(listing.status_code, status.HTTP_200_OK)
+        self.assertEqual(listing.data["count"], 1)
+        row = listing.data["results"][0]
+        self.assertEqual(row["order_count"], 2)
+        self.assertEqual(row["total_spent"], "250000.00")
+        self.assertNotIn("password", row)
+
+        detail = self.client.get(f"/api/backoffice/customers/{self.customer.id}/")
+        self.assertEqual(detail.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(detail.data["orders"]), 2)
+        self.assertEqual(detail.data["last_order_at"], max(order.created_at for order in self.customer.orders.all()).isoformat().replace("+00:00", "Z"))
+        self.assertNotIn("password", detail.data)
+        self.assertNotIn("role", detail.data)
+
+    def test_admin_customer_detail_404(self):
+        self.client.force_authenticate(self.admin)
+        self.assertEqual(self.client.get("/api/backoffice/customers/999999/").status_code, status.HTTP_404_NOT_FOUND)

@@ -32,6 +32,7 @@ class ProductVariant(models.Model):
     size = models.CharField(max_length=10)
     color = models.CharField(max_length=50)
     stock = models.PositiveIntegerField(default=0)
+    active = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.product.name} - {self.size} - {self.color}"
@@ -47,3 +48,28 @@ class ProductImage(models.Model):
 
     def __str__(self):
         return f"Imagen de {self.product.name}"
+
+
+class StockMovement(models.Model):
+    class Type(models.TextChoices):
+        RESTOCK = "RESTOCK", "Ingreso"
+        REMOVE = "REMOVE", "Retiro"
+        SET = "SET", "Ajuste"
+        ORDER = "ORDER", "Pedido"
+        CANCELLATION = "CANCELLATION", "Cancelación"
+
+    variant = models.ForeignKey(ProductVariant, on_delete=models.PROTECT, related_name="stock_movements")
+    movement_type = models.CharField(max_length=16, choices=Type.choices)
+    quantity = models.PositiveIntegerField()
+    previous_stock = models.PositiveIntegerField()
+    new_stock = models.PositiveIntegerField()
+    reason = models.CharField(max_length=255)
+    performed_by = models.ForeignKey("users.User", on_delete=models.PROTECT, related_name="stock_movements")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["movement_type", "created_at"])]
+
+    def __str__(self):
+        return f"{self.variant} {self.movement_type}: {self.previous_stock} -> {self.new_stock}"

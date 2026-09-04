@@ -49,9 +49,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     cartItemsContainer.innerHTML = items.map((item) => {
-      const editHref = `/crear-mi-remera/?edit_cart_item=${encodeURIComponent(item.id)}`;
-      const imageMarkup = item.is_customized && item.preview_front
-        ? `<a class="cart-preview-link" href="${editHref}" aria-label="Editar diseño de ${escapeHtml(item.product_name)}"><img class="cart-preview-front" src="${escapeHtml(item.preview_front)}" alt="Preview de ${escapeHtml(item.product_name)} personalizada">${item.preview_back ? `<img class="cart-preview-back" src="${escapeHtml(item.preview_back)}" alt="Preview trasera de ${escapeHtml(item.product_name)} personalizada" hidden>` : ''}</a>`
+      const customization = item.customization_detail;
+      const previewFront = customization?.preview_front_url || item.preview_front;
+      const previewBack = customization?.preview_back_url || item.preview_back;
+      const editHref = customization
+        ? `/crear-mi-remera/?customization=${encodeURIComponent(customization.id)}`
+        : `/crear-mi-remera/?edit_cart_item=${encodeURIComponent(item.id)}`;
+      const imageMarkup = item.is_customized && previewFront
+        ? `<a class="cart-preview-link" href="${editHref}" aria-label="Editar diseño de ${escapeHtml(item.product_name)}"><img class="cart-preview-front" src="${escapeHtml(previewFront)}" alt="Preview de ${escapeHtml(item.product_name)} personalizada">${previewBack ? `<img class="cart-preview-back" src="${escapeHtml(previewBack)}" alt="Preview trasera de ${escapeHtml(item.product_name)} personalizada" hidden>` : ''}</a>`
         : (
           item.product_image
             ? `<img src="${escapeHtml(item.product_image)}" alt="${escapeHtml(item.product_name)}">`
@@ -80,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <button type="button" data-qty-change="increment" data-item-id="${item.id}">+</button>
               </div>
             </div>
-            <div class="cart-prices"><span>${formatMoney(item.product_price)} c/u</span><strong>${formatMoney(Number(item.product_price) * Number(item.quantity))}</strong>${item.is_customized ? `<div class="cart-item-actions"><a class="cart-edit" href="${editHref}">Editar diseño</a>${item.preview_back ? `<button class="cart-edit" type="button" data-preview-toggle="${item.id}">Ver espalda</button>` : ''}</div>` : ''}</div>
+            <div class="cart-prices"><span>${formatMoney(item.product_price)} c/u</span><strong>${formatMoney(Number(item.product_price) * Number(item.quantity))}</strong>${item.is_customized ? `<div class="cart-item-actions"><a class="cart-edit" href="${editHref}">Editar personalización</a>${previewBack ? `<button class="cart-edit" type="button" data-preview-toggle="${item.id}">Ver espalda</button>` : ''}</div>` : ''}</div>
           </div>
         </div>
       </article>

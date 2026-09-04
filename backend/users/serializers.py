@@ -13,11 +13,38 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "username",
+            "first_name",
+            "last_name",
             "email",
             "role",
             "date_joined",
         ]
         read_only_fields = fields
+
+
+class AdminCustomerListSerializer(serializers.ModelSerializer):
+    order_count = serializers.IntegerField(read_only=True)
+    total_spent = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
+    last_order_at = serializers.DateTimeField(read_only=True, allow_null=True)
+
+    class Meta:
+        model = User
+        fields = ["id", "username", "first_name", "last_name", "email", "date_joined", "is_active", "order_count", "total_spent", "last_order_at"]
+        read_only_fields = fields
+
+
+class AdminCustomerDetailSerializer(AdminCustomerListSerializer):
+    orders = serializers.SerializerMethodField()
+
+    class Meta(AdminCustomerListSerializer.Meta):
+        fields = AdminCustomerListSerializer.Meta.fields + ["orders"]
+
+    def get_orders(self, obj):
+        from django.db.models import Count
+        from orders.serializers import OrderListSerializer
+
+        queryset = obj.orders.annotate(item_count=Count("items")).order_by("-created_at")
+        return OrderListSerializer(queryset, many=True).data
 
 
 class RegisterSerializer(serializers.ModelSerializer):

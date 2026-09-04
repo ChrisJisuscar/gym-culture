@@ -36,6 +36,7 @@ const Customizer3D = (() => {
   let raycastManager;
   let draggingDesign = false;
   let repositioningDesign = false;
+  let captureDistance;
   let resizeObserver;
   let animationFrameId;
   let initialized = false;
@@ -132,6 +133,7 @@ const Customizer3D = (() => {
     const verticalDistance = size.y / (2 * config.fillRatio * Math.tan(halfFov));
     const horizontalDistance = size.x / (2 * config.fillRatio * Math.tan(halfFov) * camera.aspect);
     const distance = Math.max(verticalDistance, horizontalDistance) + size.z * 0.6;
+    captureDistance = distance;
 
     camera.position.set(0, size.y * 0.04, distance);
     camera.near = Math.max(distance * 0.02, 0.01);
@@ -260,6 +262,7 @@ const Customizer3D = (() => {
       centerAndFrameGarment();
       bindDesignInteraction();
       setStatus('');
+      document.dispatchEvent(new CustomEvent('gymculture:3d-ready'));
     } catch (error) {
       setStatus('No se pudo preparar la remera 3D.', true);
       console.error('[GYM CULTURE 3D] Modelo inválido.', error);
@@ -307,6 +310,7 @@ const Customizer3D = (() => {
   };
 
   const getCustomizationState = () => JSON.parse(JSON.stringify({
+    version: 1,
     garment: {
       type: window.GymCultureCustomizer?.state.garmentType,
       color: window.GymCultureCustomizer?.state.garmentColor,
@@ -316,6 +320,52 @@ const Customizer3D = (() => {
     },
     designs: window.GymCultureCustomizer?.state.designs || [],
   }));
+
+  const canvasToBlob = (canvas) => new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('No se pudo generar el preview.')), 'image/webp', 0.9);
+  });
+
+  const capturePreviews = async () => {
+    if (!garment || !designManager) throw new Error('La remera todavía no está lista.');
+    const previewRenderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    previewRenderer.setPixelRatio(1);
+    previewRenderer.setSize(1024, 1024, false);
+    previewRenderer.outputColorSpace = THREE.SRGBColorSpace;
+    previewRenderer.setClearColor(0x100d18, 1);
+    const previewCamera = camera.clone();
+    previewCamera.aspect = 1;
+    previewCamera.updateProjectionMatrix();
+    designManager.setSelectionHighlight(false);
+    try {
+      const capture = async (direction) => {
+        previewCamera.position.set(0, garmentSize.y * 0.04, captureDistance * direction);
+        previewCamera.lookAt(0, 0, 0);
+        previewRenderer.render(scene, previewCamera);
+        return canvasToBlob(previewRenderer.domElement);
+      };
+      return { front: await capture(1), back: await capture(-1) };
+    } finally {
+      designManager.setSelectionHighlight(true);
+      previewRenderer.dispose();
+    }
+  };
+
+  const loadCustomization = async (configuration) => {
+    if (configuration?.version !== 1 || !configuration.garment || !Array.isArray(configuration.designs)) {
+      throw new Error('La versión de la personalización no es compatible.');
+    }
+    const state = window.GymCultureCustomizer.state;
+    Object.assign(state, {
+      garmentType: configuration.garment.type,
+      garmentColor: configuration.garment.color,
+      garmentColorHex: configuration.garment.colorHex,
+      size: configuration.garment.size,
+    });
+    state.designs.splice(0, state.designs.length, ...configuration.designs);
+    setColor(state.garmentColorHex);
+    await designManager.restoreAll(garmentMeshes[0]);
+    document.dispatchEvent(new CustomEvent('gymculture:customization-loaded', { detail: configuration }));
+  };
 
   const dispose = () => {
     if (animationFrameId) cancelAnimationFrame(animationFrameId);
@@ -360,7 +410,8 @@ const Customizer3D = (() => {
   return {
     init, dispose, setColor, prepareImage, prepareText,
     updateSelectedDesign, removeSelectedDesign, rearmSelectedDesign,
-    getCustomizationState,
+    getCustomizationState, capturePreviews, loadCustomization,
+    isReady: () => Boolean(designManager),
   };
 })();
 

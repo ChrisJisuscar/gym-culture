@@ -3,7 +3,7 @@
     <a class="wordmark" href="{% url 'home' %}">
       GYM <em>CULTURE</em><span class="by-gc"><b>by</b> <i>GC</i></span>
     </a>
-    <button class="menu-toggle" aria-expanded="false" aria-controls="mobile-menu">
+    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu">
       <span class="sr-only">Abrir menú</span>
       <i></i>
       <i></i>
@@ -82,6 +82,12 @@
             <span class="user-cart-icon" aria-hidden="true">🛒</span>
             <span class="user-cart-text">Vea sus productos en el carrito</span>
           </a>
+          <a class="user-cart-link" href="{% url 'my-orders' %}">
+            <span class="user-cart-text">Mis pedidos</span>
+          </a>
+          <a class="user-cart-link" id="nav-backoffice-link" href="{% url 'backoffice-dashboard-page' %}" hidden>
+            <span class="user-cart-text">Backoffice</span>
+          </a>
           <button type="button" id="nav-logout-button">Cerrar sesión</button>
         </div>
       </div>
@@ -99,6 +105,8 @@
       <span id="mobile-profile-email">—</span>
       <span id="mobile-profile-joined">—</span>
       <a href="{% url 'cart' %}">🛒 Ver carrito</a>
+      <a href="{% url 'my-orders' %}">Mis pedidos</a>
+      <a id="mobile-backoffice-link" href="{% url 'backoffice-dashboard-page' %}" hidden>Backoffice</a>
     </div>
     <button id="mobile-logout-button" type="button" hidden>Cerrar sesión</button>
   </div>

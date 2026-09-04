@@ -1,0 +1,30 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Backoffice{% endblock %} | GYM CULTURE</title>
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  <link rel="stylesheet" href="{% static 'css/backoffice.css' %}">
+</head>
+<body class="backoffice-body">
+  <header class="bo-topbar"><a href="{% url 'backoffice-dashboard-page' %}">GYM <i>CULTURE</i> <span>ADMIN</span></a><strong id="bo-user">Operaciones</strong></header>
+  <aside class="bo-sidebar">
+    <nav>
+      <a data-nav-section="dashboard" href="{% url 'backoffice-dashboard-page' %}">Dashboard</a>
+      <a data-nav-section="orders" href="{% url 'backoffice-orders-page' %}">Pedidos</a>
+      <a data-nav-section="production" href="{% url 'backoffice-production-page' %}">Producción</a>
+      <a data-nav-section="products" href="{% url 'backoffice-products-page' %}">Productos</a>
+      <a data-nav-section="stock" href="{% url 'backoffice-stock-page' %}">Stock</a>
+      <a data-nav-section="customers" href="{% url 'backoffice-customers-page' %}">Clientes</a>
+    </nav>
+    <a href="{% url 'home' %}">← Volver a tienda</a>
+  </aside>
+  <main class="bo-main" data-backoffice-view="{% block view_name %}{% endblock %}" {% block view_data %}{% endblock %}>
+    {% block content %}{% endblock %}
+  </main>
+  <script src="{% static 'js/auth-session.js' %}" defer></script>
+  <script src="{% static 'js/backoffice.js' %}" defer></script>
+</body>
+</html>

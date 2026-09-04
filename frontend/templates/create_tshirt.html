@@ -108,6 +108,7 @@
   {{ variants|json_script:'product-variants' }}
 {% endblock %}
 {% block extra_js %}
+  <script src="{% static 'js/customization-api.js' %}" defer></script>
   <script src="{% static 'js/customizer.js' %}" defer></script>
   <script type="importmap">{ "imports": { "three": "/static/vendor/three/three.module.min.js" } }</script>
   <script type="module" src="{% static 'js/customizer-3d.js' %}"></script>

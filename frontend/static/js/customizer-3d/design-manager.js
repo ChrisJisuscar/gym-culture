@@ -40,6 +40,13 @@ const readImage = (file) => new Promise((resolve, reject) => {
   reader.readAsDataURL(file);
 });
 
+const loadTexture = (url) => new Promise((resolve, reject) => {
+  new THREE.TextureLoader().load(url, (texture) => {
+    texture.colorSpace = THREE.SRGBColorSpace;
+    resolve(texture);
+  }, undefined, () => reject(new Error('No se pudo cargar un asset de la personalización.')));
+});
+
 export class DesignManager {
   constructor({ scene, designs, garmentSize, onChange }) {
     this.scene = scene;
@@ -195,11 +202,43 @@ export class DesignManager {
 
   notify() { this.onChange?.(this.selected()); }
 
-  dispose() {
-    this.clearPending();
-    [...this.resources.keys()].forEach((id) => {
-      this.selectedId = id;
-      this.removeSelected();
+  setSelectionHighlight(visible) {
+    this.resources.forEach(({ mesh }, resourceId) => {
+      if (mesh) mesh.material.opacity = visible && resourceId === this.selectedId ? 0.82 : 1;
     });
+  }
+
+  clearResources({ clearState = true } = {}) {
+    this.clearPending();
+    this.resources.forEach((resource) => {
+      this.scene.remove(resource.mesh);
+      resource.mesh?.geometry.dispose();
+      resource.mesh?.material.dispose();
+      resource.texture?.dispose();
+    });
+    this.resources.clear();
+    this.selectedId = null;
+    if (clearState) this.designs.splice(0);
+    this.notify();
+  }
+
+  async restoreAll(sourceMesh) {
+    this.clearResources({ clearState: false });
+    for (const design of this.designs) {
+      let texture;
+      if (design.type === 'text') {
+        texture = createTextTexture(design).texture;
+      } else {
+        if (!design.assetUrl) throw new Error('La configuración contiene una imagen sin URL.');
+        texture = await loadTexture(design.assetUrl);
+      }
+      this.resources.set(design.id, { texture, mesh: null, sourceMesh });
+      this.rebuild(design, sourceMesh);
+    }
+    this.select(null);
+  }
+
+  dispose() {
+    this.clearResources();
   }
 }

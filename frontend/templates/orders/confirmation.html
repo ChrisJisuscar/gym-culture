@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Pedido recibido | GYM CULTURE{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/orders.css' %}">{% endblock %}
+{% block content %}
+  {% include 'components/navbar.html' %}
+  <main class="order-page order-result" data-order-view="confirmation" data-order-number="{{ order_number }}">
+    <section class="order-card result-card">
+      <p class="eyebrow">PEDIDO RECIBIDO</p>
+      <h1>Ya está en <i>marcha.</i></h1>
+      <div id="order-content" aria-live="polite"><p>Cargando confirmación…</p></div>
+      <a class="button button-accent" href="{% url 'my-orders' %}">VER MIS PEDIDOS</a>
+    </section>
+  </main>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/orders.js' %}" defer></script>{% endblock %}

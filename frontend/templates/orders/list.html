@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Mis pedidos | GYM CULTURE{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/orders.css' %}">{% endblock %}
+{% block content %}
+  {% include 'components/navbar.html' %}
+  <main class="order-page" data-order-view="list">
+    <header class="order-heading"><p class="eyebrow">TU CUENTA</p><h1>Mis <i>pedidos</i></h1></header>
+    <section id="orders-list" class="orders-list" aria-live="polite"><p>Cargando pedidos…</p></section>
+  </main>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/orders.js' %}" defer></script>{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "backoffice/base.html" %}
+{% block title %}Cliente{% endblock %}
+{% block view_name %}customer-detail{% endblock %}
+{% block view_data %}data-customer-id="{{ customer_id }}"{% endblock %}
+{% block content %}
+  <header class="bo-heading"><div><p class="eyebrow">CLIENTE</p><h1>Perfil</h1></div><a href="{% url 'backoffice-customers-page' %}">← Clientes</a></header>
+  <p id="bo-feedback" class="bo-feedback" role="status">Cargando cliente…</p>
+  <div id="bo-customer-detail"></div>
+{% endblock %}

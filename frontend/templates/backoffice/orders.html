@@ -1,0 +1,15 @@
+{% extends "backoffice/base.html" %}
+{% block title %}Pedidos{% endblock %}
+{% block view_name %}orders{% endblock %}
+{% block content %}
+  <header class="bo-heading"><p class="eyebrow">GESTIÓN COMERCIAL</p><h1>Pedidos</h1></header>
+  <form id="bo-filters" class="bo-filters">
+    <input name="search" placeholder="Número, cliente o email">
+    <select name="status"><option value="">Todos los estados</option><option>PENDING</option><option>CONFIRMED</option><option>PREPARING</option><option>SHIPPED</option><option>DELIVERED</option><option>CANCELLED</option></select>
+    <input name="date_from" type="date" aria-label="Desde">
+    <input name="date_to" type="date" aria-label="Hasta">
+    <button class="bo-button" type="submit">FILTRAR</button>
+  </form>
+  <p id="bo-feedback" class="bo-feedback" role="status">Cargando pedidos…</p>
+  <section class="bo-panel"><div id="bo-orders"></div><nav id="bo-pagination" class="bo-pagination"></nav></section>
+{% endblock %}

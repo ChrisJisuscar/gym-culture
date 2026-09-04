@@ -200,6 +200,7 @@ class CartItemSerializer(serializers.ModelSerializer):
     variant_stock = serializers.IntegerField(
         source="variant.stock", read_only=True, allow_null=True
     )
+    customization_detail = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
@@ -217,12 +218,15 @@ class CartItemSerializer(serializers.ModelSerializer):
             "variant_stock",
             "quantity",
             "customization_data",
+            "customization",
+            "customization_detail",
             "preview_front",
             "preview_back",
             "is_customized",
             "created_at",
             "updated_at",
         ]
+        extra_kwargs = {"customization": {"read_only": True}}
 
     def get_product_image(self, obj):
         image = (
@@ -239,7 +243,19 @@ class CartItemSerializer(serializers.ModelSerializer):
         return obj.product.price * obj.quantity
 
     def get_is_customized(self, obj):
-        return obj.customization_data is not None
+        return obj.customization_id is not None or obj.customization_data is not None
+
+    def get_customization_detail(self, obj):
+        if not obj.customization_id:
+            return None
+        request = self.context.get("request")
+        front = obj.customization.preview_front.url
+        back = obj.customization.preview_back.url
+        return {
+            "id": str(obj.customization_id),
+            "preview_front_url": request.build_absolute_uri(front) if request else front,
+            "preview_back_url": request.build_absolute_uri(back) if request else back,
+        }
 
 
 class CartSerializer(serializers.ModelSerializer):
@@ -288,7 +304,7 @@ class AddCartItemSerializer(serializers.Serializer):
     def validate_variant(self, value):
         if value is None:
             return value
-        if not ProductVariant.objects.filter(pk=value).exists():
+        if not ProductVariant.objects.filter(pk=value, active=True).exists():
             raise serializers.ValidationError("La variante seleccionada no existe.")
         return value
 
@@ -334,6 +350,7 @@ class AddCartItemSerializer(serializers.Serializer):
     @transaction.atomic
     def save(self, **kwargs):
         cart, _ = Cart.objects.get_or_create(user=self.context["request"].user)
+        cart = Cart.objects.select_for_update().get(pk=cart.pk)
         product = Product.objects.get(pk=self.validated_data["product"])
         variant_id = self.validated_data.get("variant")
         variant = (

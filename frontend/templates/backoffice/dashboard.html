@@ -1,0 +1,9 @@
+{% extends "backoffice/base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block view_name %}dashboard{% endblock %}
+{% block content %}
+  <header class="bo-heading"><p class="eyebrow">OPERACIONES</p><h1>Dashboard</h1></header>
+  <p id="bo-feedback" class="bo-feedback" role="status">Cargando dashboard…</p>
+  <section id="bo-metrics" class="bo-metrics"></section>
+  <section class="bo-panel"><div class="bo-panel-heading"><h2>Pedidos recientes</h2><a href="{% url 'backoffice-orders-page' %}">Ver todos</a></div><div id="bo-recent"></div></section>
+{% endblock %}

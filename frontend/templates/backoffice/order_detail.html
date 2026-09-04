@@ -1,0 +1,9 @@
+{% extends "backoffice/base.html" %}
+{% block title %}Detalle de pedido{% endblock %}
+{% block view_name %}detail{% endblock %}
+{% block view_data %}data-order-id="{{ order_id }}"{% endblock %}
+{% block content %}
+  <header class="bo-heading"><p class="eyebrow">PEDIDO</p><h1>Detalle operativo</h1><a href="{% url 'backoffice-orders-page' %}">← Volver</a></header>
+  <p id="bo-feedback" class="bo-feedback" role="status">Cargando pedido…</p>
+  <div id="bo-order-detail"></div>
+{% endblock %}

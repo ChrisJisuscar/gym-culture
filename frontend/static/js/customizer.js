@@ -19,6 +19,7 @@ if (customizerRoot) {
   const designFeedback = document.querySelector('#design-feedback');
   const selectionPanel = document.querySelector('#selection-panel');
   let selectedDesign = null;
+  let customizationId = new URLSearchParams(window.location.search).get('customization');
   const matchesColor = (variant) => !variant.color || variant.color.toLowerCase() === customizerState.garmentColor.toLowerCase();
 
   const updateStock = () => {
@@ -121,6 +122,24 @@ if (customizerRoot) {
   document.querySelector('#reposition-design').addEventListener('click', () => window.GymCulture3D.rearmSelectedDesign());
   document.querySelector('#delete-design').addEventListener('click', () => window.GymCulture3D.removeSelectedDesign());
 
+  const syncControlsFromState = () => {
+    document.querySelectorAll('.color-option').forEach((option) => {
+      const selected = option.dataset.color.toLowerCase() === customizerState.garmentColor.toLowerCase();
+      option.classList.toggle('is-selected', selected);
+      option.setAttribute('aria-checked', String(selected));
+    });
+    document.querySelectorAll('.size-option').forEach((option) => {
+      const selected = option.dataset.size === customizerState.size;
+      option.classList.toggle('is-selected', selected);
+      option.setAttribute('aria-checked', String(selected));
+    });
+    updateStock();
+    updateSummary();
+    renderSelection(null);
+  };
+
+  document.addEventListener('gymculture:customization-loaded', syncControlsFromState);
+
   document.querySelectorAll('.color-option').forEach((button) => button.addEventListener('click', () => {
     customizerState.garmentColor = button.dataset.color;
     customizerState.garmentColorHex = button.dataset.hex;
@@ -162,31 +181,50 @@ if (customizerRoot) {
       return;
     }
     cartButton.disabled = true;
-    cartButton.textContent = 'AGREGANDO...';
+    cartButton.textContent = customizationId ? 'GUARDANDO...' : (customizerState.designs.length ? 'GUARDANDO PERSONALIZACIÓN...' : 'AGREGANDO...');
     cartNote.textContent = '';
     try {
-      const response = await window.GymCultureAuth.request('/api/cart/items/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ product: productId, variant: customizerState.selectedVariant?.id ?? null, quantity: 1 }),
-      });
-      if (response.status === 401) {
-        window.location.assign(loginDestination());
-        return;
+      if (customizerState.designs.length || customizationId) {
+        const isNewCustomization = !customizationId;
+        const state = window.GymCulture3D.getCustomizationState();
+        const previews = await window.GymCulture3D.capturePreviews();
+        const form = await window.GymCultureCustomizationApi.buildFormData({
+          productId,
+          variantId: customizerState.selectedVariant.id,
+          state,
+          previews,
+          addToCart: !customizationId,
+        });
+        const saved = customizationId
+          ? await window.GymCultureCustomizationApi.update(customizationId, form)
+          : await window.GymCultureCustomizationApi.create(form);
+        customizationId = saved.id;
+        cartNote.textContent = isNewCustomization ? 'Producto personalizado agregado.' : 'Personalización guardada correctamente.';
+        cartButton.textContent = 'GUARDAR CAMBIOS';
+      } else {
+        const response = await window.GymCultureAuth.request('/api/cart/items/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ product: productId, variant: customizerState.selectedVariant?.id ?? null, quantity: 1 }),
+        });
+        if (response.status === 401) {
+          window.location.assign(loginDestination());
+          return;
+        }
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          cartNote.textContent = data.detail || Object.values(data).flat().join(' ') || 'No pudimos agregar el producto.';
+          return;
+        }
+        cartNote.textContent = 'Producto agregado al carrito.';
       }
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        cartNote.textContent = data.detail || Object.values(data).flat().join(' ') || 'No pudimos agregar el producto.';
-        return;
-      }
-      cartNote.textContent = 'Producto agregado al carrito.';
       document.dispatchEvent(new CustomEvent('gymculture:cart-changed'));
     } catch (error) {
       console.error('[GYM CULTURE] Error al agregar al carrito.', error);
-      cartNote.textContent = 'No pudimos conectar con el carrito. Intentá de nuevo.';
+      cartNote.textContent = error.message || 'No pudimos conectar con el carrito. Intentá de nuevo.';
     } finally {
       cartButton.disabled = false;
-      cartButton.textContent = 'AGREGAR AL CARRITO';
+      cartButton.textContent = customizationId ? 'GUARDAR CAMBIOS' : 'AGREGAR AL CARRITO';
     }
   });
 
@@ -196,4 +234,24 @@ if (customizerRoot) {
     state: customizerState,
     getCustomizationState: () => window.GymCulture3D?.getCustomizationState(),
   };
+
+  const loadExistingCustomization = async () => {
+    if (!customizationId) return;
+    if (!localStorage.getItem('gc_access_token') && !localStorage.getItem('gc_refresh_token')) {
+      window.location.assign(loginDestination());
+      return;
+    }
+    try {
+      const saved = await window.GymCultureCustomizationApi.get(customizationId);
+      if (!window.GymCulture3D?.isReady()) {
+        await new Promise((resolve) => document.addEventListener('gymculture:3d-ready', resolve, { once: true }));
+      }
+      await window.GymCulture3D.loadCustomization(saved.configuration);
+      cartButton.textContent = 'GUARDAR CAMBIOS';
+      document.querySelector('.customizer-intro > p:last-child').textContent = 'Editá tu personalización guardada.';
+    } catch (error) {
+      cartNote.textContent = error.status === 404 ? 'No encontramos esa personalización.' : error.message;
+    }
+  };
+  loadExistingCustomization();
 }

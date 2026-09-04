@@ -25,10 +25,13 @@ load_dotenv(PROJECT_ROOT / ".env")
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-tif@0ir(o0ti8z$bg8u#!!wgap5m5w%z4(wisj#)zit+aw5$$("
+SECRET_KEY = os.getenv(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-tif@0ir(o0ti8z$bg8u#!!wgap5m5w%z4(wisj#)zit+aw5$$(",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DJANGO_DEBUG", "true").lower() in {"1", "true", "yes"}
 
 ALLOWED_HOSTS = [
     "localhost",
@@ -50,6 +53,7 @@ INSTALLED_APPS = [
     "products",
     "orders",
     "cart",
+    "customizations.apps.CustomizationsConfig",
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
 ]
@@ -141,11 +145,10 @@ STATIC_ROOT = PROJECT_ROOT / "staticfiles"
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
-MAILERS = {
-    "default": {
-        "BACKEND": "django.core.mail.backends.console.EmailBackend",
-    },
-}
+EMAIL_BACKEND = os.getenv(
+    "DJANGO_EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend",
+)
 
 AUTH_USER_MODEL = "users.User"
 MEDIA_URL = "/media/"

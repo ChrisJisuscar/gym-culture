@@ -1,0 +1,27 @@
+{% extends "backoffice/base.html" %}
+{% block title %}Stock{% endblock %}
+{% block view_name %}stock{% endblock %}
+{% block content %}
+  <header class="bo-heading"><div><p class="eyebrow">INVENTARIO</p><h1>Stock</h1></div></header>
+  <form id="stock-filters" class="bo-filters">
+    <label class="sr-only" for="stock-search">Buscar en inventario</label>
+    <input id="stock-search" name="search" placeholder="Producto, color o talla">
+    <label class="sr-only" for="stock-level">Nivel de stock</label>
+    <select id="stock-level" name="stock"><option value="">Todo el stock</option><option value="low">Stock bajo</option><option value="out">Sin stock</option></select>
+    <button class="bo-button" type="submit">FILTRAR</button>
+  </form>
+  <p id="bo-feedback" class="bo-feedback" role="status" aria-live="polite">Cargando inventario…</p>
+  <section class="bo-panel"><div id="bo-stock"></div><nav id="bo-pagination" class="bo-pagination" aria-label="Paginación del inventario"></nav></section>
+  <section class="bo-panel stock-history-panel"><div class="bo-panel-heading"><h2>Movimientos recientes</h2><button id="refresh-history" class="bo-button" type="button">ACTUALIZAR</button></div><div id="stock-history"></div></section>
+  <dialog id="stock-dialog" class="bo-dialog">
+    <form id="stock-adjust-form" method="dialog">
+      <button class="dialog-close" type="submit" value="cancel" aria-label="Cerrar">×</button>
+      <p class="eyebrow">AJUSTAR STOCK</p><h2 id="stock-dialog-title">Variante</h2>
+      <input name="variant_id" type="hidden">
+      <label>Operación<select name="movement_type"><option value="RESTOCK">Agregar</option><option value="REMOVE">Retirar</option><option value="SET">Establecer</option></select></label>
+      <label>Cantidad<input name="quantity" type="number" min="0" required></label>
+      <label>Motivo<textarea name="reason" maxlength="255" required></textarea></label>
+      <button class="bo-button bo-primary" type="submit">GUARDAR AJUSTE</button>
+    </form>
+  </dialog>
+{% endblock %}

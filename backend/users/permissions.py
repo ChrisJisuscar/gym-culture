@@ -10,5 +10,5 @@ class IsAdminRole(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
-            and request.user.role == User.Role.ADMIN
+            and (request.user.role == User.Role.ADMIN or request.user.is_staff)
         )

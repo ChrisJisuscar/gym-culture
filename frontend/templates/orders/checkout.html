@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Checkout | GYM CULTURE{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/orders.css' %}">{% endblock %}
+{% block content %}
+  {% include 'components/navbar.html' %}
+  <main class="order-page checkout-page" data-order-view="checkout">
+    <header class="order-heading">
+      <p class="eyebrow">CHECKOUT</p>
+      <h1>Confirmá tu <i>pedido</i></h1>
+      <a href="{% url 'cart' %}">← Volver al carrito</a>
+    </header>
+    <form id="checkout-form" class="checkout-layout">
+      <div class="checkout-fields">
+        <section class="order-card">
+          <p class="section-index">01 / CONTACTO</p>
+          <div class="field-grid">
+            <label>Nombre<input name="first_name" autocomplete="given-name" required maxlength="100"></label>
+            <label>Apellido<input name="last_name" autocomplete="family-name" required maxlength="100"></label>
+            <label>Email<input name="email" type="email" autocomplete="email" required></label>
+            <label>Teléfono<input name="phone" type="tel" autocomplete="tel" required maxlength="30"></label>
+          </div>
+        </section>
+        <section class="order-card">
+          <p class="section-index">02 / ENTREGA</p>
+          <div class="field-grid">
+            <label class="field-wide">Dirección<input name="address" autocomplete="street-address" required maxlength="255"></label>
+            <label>Ciudad<input name="city" autocomplete="address-level2" required maxlength="100"></label>
+            <label>Departamento<input name="department" autocomplete="address-level1" required maxlength="100"></label>
+            <label class="field-wide">Referencia adicional<textarea name="reference" rows="3" maxlength="255"></textarea></label>
+          </div>
+        </section>
+      </div>
+      <aside class="order-card checkout-summary">
+        <p class="section-index">03 / TU PEDIDO</p>
+        <div id="checkout-items" class="checkout-items" aria-live="polite"><p>Cargando carrito…</p></div>
+        <dl class="checkout-totals">
+          <div><dt>Subtotal</dt><dd id="checkout-subtotal">G 0</dd></div>
+          <div><dt>Envío</dt><dd>G 0</dd></div>
+          <div class="total"><dt>Total</dt><dd id="checkout-total">G 0</dd></div>
+        </dl>
+        <button id="confirm-order" class="button button-accent" type="submit">CONFIRMAR PEDIDO</button>
+        <p id="checkout-feedback" class="order-feedback" role="status"></p>
+      </aside>
+    </form>
+  </main>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/orders.js' %}" defer></script>{% endblock %}

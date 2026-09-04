@@ -7,18 +7,13 @@ from .models import Cart, CartItem
 from .serializers import AddCartItemSerializer, CartSerializer, CartItemSerializer
 
 
-class CartViewSet(viewsets.ViewSet):
-    permission_classes = [IsAuthenticated]
-
-    def list(self, request):
-        cart, _ = Cart.objects.get_or_create(user=request.user)
-        serializer = CartSerializer(cart, context={"request": request})
-        return Response(serializer.data)
-
-    def destroy(self, request):
-        cart, _ = Cart.objects.get_or_create(user=request.user)
-        cart.items.all().delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+def get_user_cart(user):
+    cart, _ = Cart.objects.get_or_create(user=user)
+    return Cart.objects.prefetch_related(
+        "items__product__images",
+        "items__variant",
+        "items__customization",
+    ).get(pk=cart.pk)
 
 
 class CartItemViewSet(viewsets.ModelViewSet):
@@ -27,7 +22,7 @@ class CartItemViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         cart, _ = Cart.objects.get_or_create(user=self.request.user)
-        return cart.items.select_related("product", "variant").prefetch_related(
+        return cart.items.select_related("product", "variant", "customization").prefetch_related(
             "product__images"
         )
 
@@ -98,7 +93,7 @@ class CartAPI(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        cart, _ = Cart.objects.get_or_create(user=request.user)
+        cart = get_user_cart(request.user)
         return Response(CartSerializer(cart, context={"request": request}).data)
 
     def delete(self, request):

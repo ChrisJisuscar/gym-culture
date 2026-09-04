@@ -1,0 +1,29 @@
+{% extends "backoffice/base.html" %}
+{% block title %}Producto{% endblock %}
+{% block view_name %}product-detail{% endblock %}
+{% block view_data %}data-product-id="{{ product_id }}"{% endblock %}
+{% block content %}
+  <header class="bo-heading"><div><p class="eyebrow">CATÁLOGO</p><h1 id="product-page-title">Producto</h1></div><a href="{% url 'backoffice-products-page' %}">← Productos</a></header>
+  <p id="bo-feedback" class="bo-feedback" role="status"></p>
+  <form id="product-form" class="bo-product-form">
+    <section class="bo-panel bo-form-grid">
+      <label>Nombre<input name="name" required maxlength="150"></label>
+      <label>Precio<input name="price" type="number" min="0" step="0.01" required></label>
+      <label>Categoría<select name="category" id="product-category" required></select></label>
+      <label class="bo-check"><input name="active" type="checkbox" checked> Producto activo</label>
+      <label class="bo-wide">Descripción<textarea name="description" rows="5" required></textarea></label>
+      <div class="bo-wide inline-create"><input id="new-category-name" placeholder="Nueva categoría"><button id="create-category" class="bo-button" type="button">CREAR CATEGORÍA</button></div>
+    </section>
+    <section class="bo-panel">
+      <div class="bo-panel-heading"><h2>Variantes</h2><button id="add-variant" class="bo-button" type="button">AGREGAR VARIANTE</button></div>
+      <div id="variant-editor" class="variant-editor"></div>
+      <p class="bo-hint">Desactivá una variante histórica en lugar de eliminarla. Los cambios de stock quedan auditados como SET.</p>
+    </section>
+    <section class="bo-panel">
+      <h2>Imágenes</h2>
+      <div id="product-images" class="product-images"></div>
+      <label class="image-upload">Subir imágenes<input name="images" type="file" accept="image/png,image/jpeg,image/webp" multiple></label>
+    </section>
+    <button id="save-product" class="bo-button bo-primary" type="submit">GUARDAR PRODUCTO</button>
+  </form>
+{% endblock %}

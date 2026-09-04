@@ -51,6 +51,11 @@
     const mobileLogout = document.querySelector('#mobile-logout-button');
     const mobileProfile = document.querySelector('#mobile-profile');
     const loginButton = document.querySelector('#nav-login-button');
+    const isAdmin = user?.role === 'ADMIN';
+    const backofficeLink = document.querySelector('#nav-backoffice-link');
+    const mobileBackofficeLink = document.querySelector('#mobile-backoffice-link');
+    if (backofficeLink) backofficeLink.hidden = !isAdmin;
+    if (mobileBackofficeLink) mobileBackofficeLink.hidden = !isAdmin;
     [navAuth, mobileAuth].filter(Boolean).forEach((link) => {
       link.dataset.authenticated = Boolean(user);
       if (link.tagName === 'A') link.href = user ? '#' : '/login/';
