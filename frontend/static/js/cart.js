@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
   }[character]));
 
-  const loginDestination = () => `/login/?next=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`;
+  const loginDestination = () => authApi?.loginUrl?.() || '/login/';
 
   const renderEmptyState = (message = 'Entrá a GYM CULTURE para guardar tus prendas.', action = { href: loginDestination(), label: 'Iniciar sesión' }) => {
     if (!cartItemsContainer) return;
@@ -119,6 +119,11 @@ document.addEventListener('DOMContentLoaded', () => {
       renderCart(cart);
     } catch (error) {
       console.error(error);
+      if (authApi.isSessionError?.(error)) {
+        updateCartBadge(0);
+        renderEmptyState(error.message);
+        return;
+      }
       renderEmptyState('No pudimos cargar tu carrito. Intentá de nuevo.');
     }
   };

@@ -1,11 +1,16 @@
 from django.core.files.storage import default_storage
 from rest_framework import serializers
 
+from payments.serializers import PaymentSerializer
+
 from .models import Order, OrderItem, OrderStatusHistory
 
 
 class CheckoutSerializer(serializers.Serializer):
     idempotency_key = serializers.UUIDField()
+    payment_provider = serializers.CharField(
+        max_length=50, required=False, allow_blank=True, write_only=True
+    )
     first_name = serializers.CharField(max_length=100)
     last_name = serializers.CharField(max_length=100)
     email = serializers.EmailField()
@@ -22,6 +27,7 @@ class CheckoutSerializer(serializers.Serializer):
                 raise serializers.ValidationError({field: "Este campo es obligatorio."})
         attrs["email"] = attrs["email"].strip().lower()
         attrs["reference"] = attrs.get("reference", "").strip()
+        attrs["payment_provider"] = attrs.get("payment_provider", "").strip().lower()
         return attrs
 
 
@@ -67,10 +73,23 @@ class OrderItemSerializer(serializers.ModelSerializer):
 class OrderListSerializer(serializers.ModelSerializer):
     item_count = serializers.IntegerField(read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
+    payment_status_display = serializers.CharField(
+        source="get_payment_status_display", read_only=True
+    )
 
     class Meta:
         model = Order
-        fields = ["id", "order_number", "created_at", "status", "status_display", "item_count", "total"]
+        fields = [
+            "id",
+            "order_number",
+            "created_at",
+            "status",
+            "status_display",
+            "payment_status",
+            "payment_status_display",
+            "item_count",
+            "total",
+        ]
         read_only_fields = fields
 
 
@@ -91,6 +110,7 @@ class OrderSerializer(serializers.ModelSerializer):
     payment_status_display = serializers.CharField(source="get_payment_status_display", read_only=True)
     shipping = serializers.SerializerMethodField()
     item_count = serializers.SerializerMethodField()
+    payments = PaymentSerializer(many=True, read_only=True)
 
     class Meta:
         model = Order
@@ -98,6 +118,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "id", "order_number", "status", "status_display", "payment_status",
             "payment_status_display", "delivery_method", "subtotal", "shipping_cost",
             "total", "created_at", "updated_at", "shipping", "item_count", "items",
+            "payments",
         ]
         read_only_fields = fields
 
@@ -117,7 +138,9 @@ class OrderSerializer(serializers.ModelSerializer):
 
 
 class OrderStatusHistorySerializer(serializers.ModelSerializer):
-    changed_by = serializers.CharField(source="changed_by.email", read_only=True)
+    changed_by = serializers.CharField(
+        source="changed_by.email", read_only=True, allow_null=True
+    )
 
     class Meta:
         model = OrderStatusHistory

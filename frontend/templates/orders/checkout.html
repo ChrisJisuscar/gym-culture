@@ -4,7 +4,7 @@
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/orders.css' %}">{% endblock %}
 {% block content %}
   {% include 'components/navbar.html' %}
-  <main class="order-page checkout-page" data-order-view="checkout">
+  <main class="order-page checkout-page" data-order-view="checkout" data-debug="{{ debug|yesno:'true,false' }}">
     <header class="order-heading">
       <p class="eyebrow">CHECKOUT</p>
       <h1>Confirmá tu <i>pedido</i></h1>
@@ -30,9 +30,23 @@
             <label class="field-wide">Referencia adicional<textarea name="reference" rows="3" maxlength="255"></textarea></label>
           </div>
         </section>
+        <section class="order-card">
+          <p class="section-index">03 / PAGO</p>
+          {% if payment_mock_enabled %}
+            <label>
+              Método de desarrollo
+              <select name="payment_provider">
+                <option value="mock">Proveedor mock (sin cobro real)</option>
+              </select>
+            </label>
+            <p class="payment-note">El pago se crea pendiente. Podrás simular su resultado desde el detalle del pedido.</p>
+          {% else %}
+            <p class="payment-note">El proveedor de pagos todavía no está habilitado. Podrás completar el pago cuando esté disponible.</p>
+          {% endif %}
+        </section>
       </div>
       <aside class="order-card checkout-summary">
-        <p class="section-index">03 / TU PEDIDO</p>
+        <p class="section-index">04 / TU PEDIDO</p>
         <div id="checkout-items" class="checkout-items" aria-live="polite"><p>Cargando carrito…</p></div>
         <dl class="checkout-totals">
           <div><dt>Subtotal</dt><dd id="checkout-subtotal">G 0</dd></div>

@@ -1,4 +1,5 @@
 from django.http import JsonResponse
+from django.conf import settings
 from django.db.models import Prefetch
 from django.shortcuts import render
 
@@ -22,7 +23,16 @@ def cart(request):
 
 
 def checkout(request):
-    return render(request, "orders/checkout.html")
+    return render(
+        request,
+        "orders/checkout.html",
+        {
+            "payment_provider": settings.PAYMENT_PROVIDER,
+            "payment_mock_enabled": settings.DEBUG
+            and settings.PAYMENT_PROVIDER == "mock",
+            "debug": settings.DEBUG,
+        },
+    )
 
 
 def order_confirmation(request, order_number):

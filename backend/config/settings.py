@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "orders",
     "cart",
     "customizations.apps.CustomizationsConfig",
+    "payments.apps.PaymentsConfig",
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
 ]
@@ -173,3 +174,9 @@ SIMPLE_JWT = {
 }
 
 AUTHENTICATION_BACKENDS = ["users.backends.EmailBackend"]
+
+PAYMENT_PROVIDER = os.getenv("PAYMENT_PROVIDER", "mock" if DEBUG else "")
+PAYMENT_CURRENCY = os.getenv("PAYMENT_CURRENCY", "PYG").upper()
+PAYMENT_PUBLIC_KEY = os.getenv("PAYMENT_PUBLIC_KEY", "")
+PAYMENT_SECRET_KEY = os.getenv("PAYMENT_SECRET_KEY", "")
+PAYMENT_WEBHOOK_SECRET = os.getenv("PAYMENT_WEBHOOK_SECRET", "")

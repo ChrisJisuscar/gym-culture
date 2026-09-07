@@ -14,7 +14,7 @@
 .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.15rem; }
 .field-grid label { display: grid; gap: .5rem; color: var(--muted); font: .68rem 'DM Mono', monospace; letter-spacing: .06em; text-transform: uppercase; }
 .field-grid .field-wide { grid-column: 1 / -1; }
-.field-grid input, .field-grid textarea { width: 100%; border: 1px solid var(--line); border-radius: 2px; padding: .9rem 1rem; background: #0d0b13; color: var(--text); resize: vertical; text-transform: none; }
+.field-grid input, .field-grid textarea, .checkout-fields select { width: 100%; border: 1px solid var(--line); border-radius: 2px; padding: .9rem 1rem; background: #0d0b13; color: var(--text); resize: vertical; text-transform: none; }
 .field-grid input:focus, .field-grid textarea:focus { border-color: var(--lavender); outline: none; }
 .checkout-summary { position: sticky; top: 7rem; }
 .checkout-items { display: grid; gap: .85rem; }
@@ -44,6 +44,14 @@
 .order-number-row small { color: var(--muted); font: .6rem 'DM Mono', monospace; }
 .order-number-row h2 { margin: .25rem 0 0; font-size: 2rem; }
 .order-date, .payment-note { color: var(--muted); }
+.payment-summary { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+.payment-summary ul { display: grid; gap: .75rem; margin: 1rem 0 0; padding: 0; list-style: none; }
+.payment-summary li { display: grid; gap: .35rem; padding: .85rem; background: #0d0b13; }
+.payment-summary li span { color: var(--muted); font-size: .8rem; }
+.mock-payment-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
+.mock-payment-actions button { padding: .55rem .7rem; border: 1px solid var(--line); background: transparent; color: var(--text); cursor: pointer; }
+.mock-payment-actions button:hover, .mock-payment-actions button:focus-visible { border-color: var(--lavender); }
+.mock-payment-actions button:disabled { opacity: .5; cursor: wait; }
 .order-lines { display: grid; gap: 1rem; margin: 1.5rem 0; }
 .order-line { display: grid; grid-template-columns: 1fr auto; gap: 1rem; padding: 1rem 0; border-top: 1px solid var(--line); }
 .order-line h3, .order-line p { margin: 0 0 .35rem; }.order-line p { color: var(--muted); }

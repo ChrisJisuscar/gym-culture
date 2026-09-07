@@ -10,7 +10,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const navSection = { 'product-detail': 'products', 'customer-detail': 'customers' }[root.dataset.backofficeView] || root.dataset.backofficeView;
   document.querySelector(`[data-nav-section="${navSection}"]`)?.classList.add('is-active');
   const api = async (url, options = {}) => {
-    const response = await auth.request(url, options);
+    let response;
+    try {
+      response = await auth.request(url, options);
+    } catch (error) {
+      if (auth.isSessionError?.(error)) throw error;
+      throw new Error('No se pudo conectar con el servidor. Intentá nuevamente.');
+    }
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       const error = new Error(response.status === 403 ? 'No tenés permisos para acceder al backoffice.' : (data.detail || Object.values(data).flat(Infinity).join(' ') || 'No se pudo cargar la información.'));
@@ -22,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const fail = (error) => {
     feedback.textContent = error.message;
     feedback.classList.add('is-error');
-    if (error.status === 401) window.location.assign(`/login/?next=${encodeURIComponent(window.location.pathname)}`);
+    if (error.status === 401) auth.redirectToLogin();
   };
   const status = (value) => `<span class="bo-status status-${value.toLowerCase()}">${escapeHtml(labels[value] || value)}</span>`;
   const rows = (orders) => orders.length ? `<div class="bo-table-wrap"><table class="bo-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Fecha</th><th>Items</th><th>Total</th><th>Estado</th></tr></thead><tbody>${orders.map((order) => `<tr><td><a href="/backoffice/orders/${order.id}/">${escapeHtml(order.order_number)}</a></td><td>${escapeHtml(order.customer_name || '—')}<small>${escapeHtml(order.customer_email || '')}</small></td><td>${date(order.created_at)}</td><td>${order.item_count}</td><td>${money(order.total)}</td><td>${status(order.status)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="bo-empty">No hay pedidos para mostrar.</div>';
@@ -57,7 +63,8 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const renderDetail = (order) => {
     const transitionOptions = order.allowed_transitions.map((value) => `<option value="${value}">${escapeHtml(labels[value])}</option>`).join('');
-    return `<section class="bo-summary-grid"><article class="bo-panel"><small>PEDIDO</small><h2>${escapeHtml(order.order_number)}</h2><p>${date(order.created_at)}</p>${status(order.status)}${transitionOptions ? `<form id="status-form"><select name="status">${transitionOptions}</select><button class="bo-button" type="submit">CAMBIAR ESTADO</button></form>` : '<p>Estado final.</p>'}</article><article class="bo-panel"><small>CLIENTE</small><h3>${escapeHtml(order.customer.first_name)} ${escapeHtml(order.customer.last_name)}</h3><p>${escapeHtml(order.customer.email)}<br>${escapeHtml(order.customer.phone)}</p></article><article class="bo-panel"><small>ENTREGA</small><p>${escapeHtml(order.shipping.address)}<br>${escapeHtml(order.shipping.city)}, ${escapeHtml(order.shipping.department)}<br>${escapeHtml(order.shipping.reference || '')}</p></article><article class="bo-panel"><small>TOTAL</small><h2>${money(order.total)}</h2><p>Pago: ${escapeHtml(order.payment_status_display)}</p></article></section><div class="bo-items">${order.items.map(itemDetail).join('')}</div><section class="bo-panel"><h3>Historial de estados</h3><ol class="bo-history">${order.status_history.length ? order.status_history.map((entry) => `<li><span>${escapeHtml(entry.old_status)} → ${escapeHtml(entry.new_status)}</span><small>${escapeHtml(entry.changed_by)} · ${date(entry.created_at)}</small></li>`).join('') : '<li>Sin cambios registrados.</li>'}</ol></section>`;
+    const paymentRows = order.payments.length ? order.payments.map((payment) => `<tr><td>${escapeHtml(payment.status_display)}</td><td>${money(payment.amount)} ${escapeHtml(payment.currency)}</td><td>${escapeHtml(payment.payment_method || '—')}</td><td>${escapeHtml(payment.provider)}</td><td>${escapeHtml(payment.external_id || '—')}</td><td>${date(payment.paid_at || payment.created_at)}</td></tr>`).join('') : '<tr><td colspan="6">Sin intentos de pago.</td></tr>';
+    return `<section class="bo-summary-grid"><article class="bo-panel"><small>PEDIDO</small><h2>${escapeHtml(order.order_number)}</h2><p>${date(order.created_at)}</p>${status(order.status)}${transitionOptions ? `<form id="status-form"><select name="status">${transitionOptions}</select><button class="bo-button" type="submit">CAMBIAR ESTADO</button></form>` : '<p>Estado final.</p>'}</article><article class="bo-panel"><small>CLIENTE</small><h3>${escapeHtml(order.customer.first_name)} ${escapeHtml(order.customer.last_name)}</h3><p>${escapeHtml(order.customer.email)}<br>${escapeHtml(order.customer.phone)}</p></article><article class="bo-panel"><small>ENTREGA</small><p>${escapeHtml(order.shipping.address)}<br>${escapeHtml(order.shipping.city)}, ${escapeHtml(order.shipping.department)}<br>${escapeHtml(order.shipping.reference || '')}</p></article><article class="bo-panel"><small>TOTAL</small><h2>${money(order.total)}</h2><p>Pago: ${escapeHtml(order.payment_status_display)}</p></article></section><section class="bo-panel"><h3>Pago</h3><div class="bo-table-wrap"><table class="bo-table"><thead><tr><th>Estado</th><th>Monto</th><th>Método</th><th>Proveedor</th><th>External ID</th><th>Fecha</th></tr></thead><tbody>${paymentRows}</tbody></table></div></section><div class="bo-items">${order.items.map(itemDetail).join('')}</div><section class="bo-panel"><h3>Historial de estados</h3><ol class="bo-history">${order.status_history.length ? order.status_history.map((entry) => `<li><span>${escapeHtml(entry.old_status)} → ${escapeHtml(entry.new_status)}</span><small>${escapeHtml(entry.changed_by || 'Sistema')} · ${date(entry.created_at)}</small></li>`).join('') : '<li>Sin cambios registrados.</li>'}</ol></section>`;
   };
 
   const loadDetail = async () => {

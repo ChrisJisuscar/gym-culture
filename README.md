@@ -25,6 +25,12 @@ The 3D editor keeps changes locally until the customer saves or adds the garment
 
 `POST /api/orders/` converts the authenticated user's cart into an order in one transaction. Product prices are recalculated server-side, product and customization snapshots are stored on each `OrderItem`, variants are locked with `select_for_update()`, and stock is deducted immediately after every item has passed validation. A checkout UUID makes retries idempotent. Purchased customizations are frozen and their previews/assets are retained. Cancelling a pending or confirmed order restores stock exactly once.
 
-Customers use `/checkout/` and `/mis-pedidos/`. Operational users with the `ADMIN` role (or Django staff status) use `/backoffice/` for dashboard metrics, paginated order management, controlled status transitions, the custom-production queue, and authenticated asset downloads. Payment remains `PENDING` until a real payment provider is integrated.
+Customers use `/checkout/` and `/mis-pedidos/`. Operational users with the `ADMIN` role (or Django staff status) use `/backoffice/` for dashboard metrics, paginated order management, controlled status transitions, the custom-production queue, and authenticated asset downloads.
+
+## Payments
+
+Payments are separate from order workflow state. An order can have multiple immutable payment attempts through `POST /api/orders/<id>/payments/`; amounts and currency are sourced exclusively from the locked order. Provider callbacks enter through `POST /api/payments/webhook/<provider>/`, are signature-checked and deduplicated by provider event ID. A successful payment confirms a pending order once without changing inventory again.
+
+The `mock` provider and its outcome controls exist only while `DJANGO_DEBUG=true`. Configure provider names, currency, public/secret credentials and the webhook secret through the payment variables shown in `.env.example`. No payment metadata or secret is returned by the public serializers. Refund support is deliberately an unimplemented provider operation until a real provider is selected.
 
 The operational backoffice also owns `/backoffice/products/`, `/backoffice/stock/`, and `/backoffice/customers/`; these no longer depend on Django Admin. Product and variant deactivation preserves historical references. Inventory adjustments lock the variant row and record a `StockMovement`; checkout and cancellation use the same ledger with `ORDER` and `CANCELLATION` entries. Customer totals exclude cancelled orders and administrative serializers never expose authentication fields. Django Admin remains available separately at `/admin/` for technical maintenance.

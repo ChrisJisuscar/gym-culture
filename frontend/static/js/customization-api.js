@@ -34,7 +34,13 @@
   };
 
   const requestJson = async (url, options = {}) => {
-    const response = await window.GymCultureAuth.request(url, options);
+    let response;
+    try {
+      response = await window.GymCultureAuth.request(url, options);
+    } catch (error) {
+      if (window.GymCultureAuth.isSessionError?.(error)) throw error;
+      throw new Error('No se pudo conectar con el servidor. Intentá nuevamente.');
+    }
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
       const message = data.detail || Object.values(data).flat(Infinity).join(' ') || 'No se pudo guardar la personalización.';

@@ -62,6 +62,7 @@ urlpatterns = [
     path("api/", include("users.urls")),
     path("api/", include("cart.urls")),
     path("api/", include("customizations.urls")),
+    path("api/", include("payments.urls")),
     path(
         "api/auth/login/", EmailTokenObtainPairView.as_view(), name="token_obtain_pair"
     ),

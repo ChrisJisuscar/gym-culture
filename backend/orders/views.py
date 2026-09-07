@@ -1,5 +1,7 @@
+import logging
 from datetime import date
 
+from django.db import transaction
 from django.db.models import Count, Q
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
@@ -8,9 +10,12 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.exceptions import APIException
 
 from customizations.models import CustomizationAsset
 from users.permissions import IsAdminRole
+from payments.serializers import PaymentSerializer
+from payments.services import PaymentService
 
 from .models import Order
 from .serializers import (
@@ -22,12 +27,15 @@ from .serializers import (
 )
 from .services import create_order_from_cart, transition_order_status
 
+logger = logging.getLogger(__name__)
+
 
 def order_detail_queryset():
     return Order.objects.select_related("user").prefetch_related(
         "items__product",
         "items__variant",
         "items__customization",
+        "payments",
         "status_history__changed_by",
     )
 
@@ -53,12 +61,42 @@ class OrderViewSet(
         queryset = self.get_queryset().annotate(item_count=Count("items"))
         return Response(OrderSerializer(queryset, many=True, context={"request": request}).data)
 
+    @transaction.atomic
     def create(self, request, *args, **kwargs):
         serializer = CheckoutSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        order, created = create_order_from_cart(user=request.user, checkout_data=serializer.validated_data)
-        response = OrderSerializer(order_detail_queryset().get(pk=order.pk), context={"request": request})
-        return Response(response.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+        checkout_data = serializer.validated_data
+        payment_provider = checkout_data.pop("payment_provider", "")
+        try:
+            order, created = create_order_from_cart(
+                user=request.user, checkout_data=checkout_data
+            )
+            payment = None
+            if payment_provider:
+                payment = order.payments.order_by("-created_at").first()
+                if payment is None:
+                    payment = PaymentService().create_payment(
+                        order=order, provider_name=payment_provider
+                    )
+            order = order_detail_queryset().get(pk=order.pk)
+            response_data = OrderSerializer(
+                order, context={"request": request}
+            ).data
+            response_data["payment"] = (
+                PaymentSerializer(payment).data if payment else None
+            )
+            return Response(
+                response_data,
+                status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+            )
+        except APIException:
+            raise
+        except Exception:
+            logger.exception(
+                "Checkout failed",
+                extra={"user_id": request.user.pk},
+            )
+            raise
 
 
 class OrderByNumberAPI(APIView):

@@ -1,13 +1,15 @@
 (() => {
   const keys = { access: 'gc_access_token', refresh: 'gc_refresh_token', user: 'gc_user' };
+  const SESSION_EXPIRED_MESSAGE = 'Tu sesión expiró. Inicia sesión nuevamente para continuar.';
+  let refreshPromise = null;
   const readUser = () => {
     try { return JSON.parse(localStorage.getItem(keys.user)); } catch { return null; }
   };
   const clear = () => Object.values(keys).forEach((key) => localStorage.removeItem(key));
   const save = ({ access, refresh, user }) => {
-    localStorage.setItem(keys.access, access);
-    localStorage.setItem(keys.refresh, refresh);
-    localStorage.setItem(keys.user, JSON.stringify(user));
+    if (access) localStorage.setItem(keys.access, access);
+    if (refresh) localStorage.setItem(keys.refresh, refresh);
+    if (user) localStorage.setItem(keys.user, JSON.stringify(user));
   };
   const formatJoinedDate = (value) => {
     if (!value) return '—';
@@ -23,26 +25,54 @@
     menu.hidden = !open;
     trigger.setAttribute('aria-expanded', String(open));
   };
-  const refreshAccess = async () => {
-    const refresh = localStorage.getItem(keys.refresh);
-    if (!refresh) throw new Error('No hay sesión.');
-    const response = await fetch('/api/auth/refresh/', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh })
-    });
-    if (!response.ok) throw new Error('La sesión expiró.');
-    const data = await response.json();
-    localStorage.setItem(keys.access, data.access);
-    return data.access;
+  const sessionExpiredError = () => {
+    const error = new Error(SESSION_EXPIRED_MESSAGE);
+    error.status = 401;
+    error.code = 'SESSION_EXPIRED';
+    return error;
   };
+  const loginUrl = () => `/login/?next=${encodeURIComponent(
+    window.location.pathname + window.location.search + window.location.hash
+  )}`;
+  const redirectToLogin = () => window.location.assign(loginUrl());
+
+  const refreshAccess = () => {
+    if (refreshPromise) return refreshPromise;
+    refreshPromise = (async () => {
+      const refresh = localStorage.getItem(keys.refresh);
+      if (!refresh) throw sessionExpiredError();
+      const response = await fetch('/api/auth/refresh/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh }),
+      });
+      if (!response.ok) throw sessionExpiredError();
+      const data = await response.json();
+      save({ access: data.access, refresh: data.refresh });
+      return data.access;
+    })().finally(() => { refreshPromise = null; });
+    return refreshPromise;
+  };
+
   const request = async (url, options = {}, retried = false) => {
     const access = localStorage.getItem(keys.access);
     const headers = new Headers(options.headers || {});
     if (access) headers.set('Authorization', `Bearer ${access}`);
     const response = await fetch(url, { ...options, headers });
-    if (response.status === 401 && !retried && localStorage.getItem(keys.refresh)) {
-      try { await refreshAccess(); return request(url, options, true); } catch { clear(); updateNavbar(); }
+    if (response.status !== 401) return response;
+    if (!retried && localStorage.getItem(keys.refresh)) {
+      try {
+        await refreshAccess();
+        return request(url, options, true);
+      } catch {
+        clear();
+        updateNavbar();
+        throw sessionExpiredError();
+      }
     }
-    return response;
+    clear();
+    updateNavbar();
+    throw sessionExpiredError();
   };
   const updateNavbar = () => {
     const user = readUser();
@@ -98,7 +128,17 @@
     } catch { clear(); }
     updateNavbar();
   };
-  window.GymCultureAuth = { clear, hydrate, logout, request, save, updateNavbar };
+  window.GymCultureAuth = {
+    clear,
+    hydrate,
+    logout,
+    request,
+    save,
+    updateNavbar,
+    isSessionError: (error) => error?.code === 'SESSION_EXPIRED',
+    loginUrl,
+    redirectToLogin,
+  };
   document.addEventListener('DOMContentLoaded', () => {
     updateNavbar();
     hydrate();

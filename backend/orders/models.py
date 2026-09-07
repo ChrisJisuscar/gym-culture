@@ -21,9 +21,12 @@ class Order(models.Model):
 
     class PaymentStatus(models.TextChoices):
         PENDING = "PENDING", "Pendiente"
+        PROCESSING = "PROCESSING", "Procesando"
         PAID = "PAID", "Pagado"
         FAILED = "FAILED", "Fallido"
+        CANCELLED = "CANCELLED", "Cancelado"
         REFUNDED = "REFUNDED", "Reembolsado"
+        PARTIALLY_REFUNDED = "PARTIALLY_REFUNDED", "Reembolso parcial"
 
     class DeliveryMethod(models.TextChoices):
         DELIVERY = "DELIVERY", "Entrega"
@@ -35,7 +38,7 @@ class Order(models.Model):
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.PENDING
     )
-    payment_status = models.CharField(max_length=16, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)
+    payment_status = models.CharField(max_length=24, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)
     delivery_method = models.CharField(max_length=16, choices=DeliveryMethod.choices, default=DeliveryMethod.DELIVERY)
     contact_first_name = models.CharField(max_length=100, default="")
     contact_last_name = models.CharField(max_length=100, default="")
@@ -111,7 +114,13 @@ class OrderStatusHistory(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="status_history")
     old_status = models.CharField(max_length=20, choices=Order.Status.choices)
     new_status = models.CharField(max_length=20, choices=Order.Status.choices)
-    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="order_status_changes")
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="order_status_changes",
+        null=True,
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
