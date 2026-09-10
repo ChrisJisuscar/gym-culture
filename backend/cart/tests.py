@@ -70,7 +70,7 @@ class CartApiTests(TestCase):
             {"product": self.product_x.id, "variant": self.variant_x.id, "quantity": 6},
             format="json",
         )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.client.post(
             "/api/cart/items/",
             {"product": self.product_x.id, "variant": self.variant_x.id, "quantity": 2},
@@ -86,7 +86,7 @@ class CartApiTests(TestCase):
             CartItem.objects.get(
                 cart__user=self.user_a, product=self.product_x
             ).quantity,
-            3,
+            9,
         )
 
     def test_anonymous_cannot_add_to_cart(self):
@@ -334,3 +334,24 @@ class CartApiTests(TestCase):
             ).status_code,
             status.HTTP_400_BAD_REQUEST,
         )
+
+
+class OversizedCartTests(CartApiTests):
+    def setUp(self):
+        super().setUp()
+        self.product_y.garment_type = "oversized"
+        self.product_y.save()
+
+    def test_mixed_cart_and_oversized_stock_update(self):
+        self.client.force_authenticate(self.user_a)
+        for product, variant in ((self.product_x, self.variant_x), (self.product_y, self.variant_y)):
+            response = self.client.post("/api/cart/items/", {"product": product.pk, "variant": variant.pk, "quantity": 1}, format="json")
+            self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(CartItem.objects.count(), 2)
+        item = CartItem.objects.get(product=self.product_y)
+        response = self.client.patch(f"/api/cart/items/{item.pk}/", {"quantity": 4}, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.variant_y.stock = 0
+        self.variant_y.save()
+        response = self.client.post("/api/cart/items/", {"product": self.product_y.pk, "variant": self.variant_y.pk, "quantity": 1}, format="json")
+        self.assertEqual(response.status_code, 201)

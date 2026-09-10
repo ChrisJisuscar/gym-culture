@@ -100,13 +100,6 @@
 .nav-shell #nav-logout-button {
   font-size: .78rem;
 }
-.culture-grid {
-  max-width: 1250px;
-  gap: 10px;
-}
-.culture-grid .culture-card {
-  height: 520px;
-}
 @media(max-width: 900px) {
   .nav-shell .navbar {
     height: 86px;
@@ -121,12 +114,6 @@
     margin-right: 2vw;
     margin-left: auto;
   }
-  .culture-grid {
-    gap: 8px;
-  }
-  .culture-grid .culture-card {
-    height: 440px;
-  }
 }
 @media(max-width: 760px) {
   .nav-shell .navbar {
@@ -134,9 +121,6 @@
   }
   .nav-shell .wordmark {
     font-size: 1.8rem;
-  }
-  .culture-grid .culture-card {
-    height: 365px;
   }
 }
 .custom-art {

@@ -4,3 +4,4 @@ djangorestframework-simplejwt==5.5.1
 psycopg2-binary==2.9.12
 python-dotenv==1.2.2
 Pillow==12.3.0
+rembg[cpu]==2.0.67

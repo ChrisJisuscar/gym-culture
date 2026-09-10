@@ -498,13 +498,6 @@ input {
   color: var(--muted);
   margin: 0
 }
-.culture-grid {
-  max-width: 1250px;
-  margin: auto;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px
-}
 .culture-card {
   height: 520px;
   position: relative;
@@ -1072,9 +1065,6 @@ input:focus-visible {
     padding-right: 5vw;
     padding-left: 5vw
   }
-  .culture-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr))
-  }
   .culture-card {
     height: 440px
   }
@@ -1212,10 +1202,6 @@ input:focus-visible {
   .section-heading h2 {
     font-size: clamp(3.4rem, 16vw, 5rem);
     margin: 1rem 0 1.4rem
-  }
-  .culture-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 6px
   }
   .culture-card {
     height: 365px;
@@ -1412,3 +1398,5 @@ input:focus-visible {
 .anime-asset {
   display: none
 }
+
+.stock-warning { color: #e8c77a; padding: .6rem; border: 1px solid currentColor; border-radius: .4rem; }

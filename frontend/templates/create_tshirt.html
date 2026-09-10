@@ -8,9 +8,9 @@
     <header class="customizer-intro">
       <p class="eyebrow">CUSTOM LAB</p>
       <h1>CREÁ TU <i>ESTILO.</i></h1>
-      <p>Explorá la remera en 360° y elegí tu color.</p>
+      <p>Elegí tu prenda, explorala en 360° y personalizá tu estilo.</p>
     </header>
-    <div class="customizer-layout" data-product-id="{{ product.id|default:'' }}" data-product-name="{{ product.name|default:'Remera Oversize' }}" data-price="{{ product.price|default:'89000' }}">
+    <div class="customizer-layout" data-product-id="{{ product.id|default:'' }}" data-product-name="{{ product.name|default:'Remera Oversize' }}" data-price="{{ product.price|default:'' }}">
       <aside class="config-panel panel">
         <div class="panel-title"><h2>PERSONALIZACIÓN</h2></div>
         <section>
@@ -33,6 +33,7 @@
         </section>
         <section class="selection-panel" id="selection-panel" hidden>
           <h3 id="selection-title">ELEMENTO SELECCIONADO</h3>
+          <button type="button" class="button button-outline" id="remove-background" hidden>QUITAR FONDO</button>
           <div id="text-properties" hidden>
             <label class="control-label" for="selected-text">CONTENIDO</label>
             <input class="editor-input" id="selected-text" type="text" maxlength="50">
@@ -59,6 +60,21 @@
         </section>
       </aside>
       <section class="editor-panel panel" aria-labelledby="viewer-title">
+        <section id="hood-controls" class="hood-controls" role="group" aria-label="Estado de la capucha" hidden>
+          <span class="hood-controls-label">CAPUCHA</span>
+          <button type="button" data-hood-state="down" class="is-active" aria-pressed="true">
+            BAJADA
+          </button>
+          <button type="button" data-hood-state="up" aria-pressed="false">
+            ALZADA
+          </button>
+        </section>
+        <div class="garment-selector" role="group" aria-label="Tipo de prenda">
+          <button class="garment-option is-active" type="button" data-garment="tshirt" aria-pressed="true" disabled>REMERA</button>
+          <button class="garment-option" type="button" data-garment="oversized" aria-pressed="false" disabled>OVERSIZE</button>
+          <button class="garment-option" type="button" data-garment="hoodie" aria-pressed="false" disabled>HOODIE</button>
+        </div>
+        <p class="garment-note" id="garment-note" role="status" hidden></p>
         <div class="editor-top"><div><span class="eyebrow" id="viewer-title">VISOR 3D</span><p>Arrastrá para rotar · rueda o gesto de pinza para acercar</p></div></div>
         <div class="shirt-stage" id="shirt-stage">
           <div class="customizer-3d-container" id="customizer-3d-container" aria-label="Remera 3D interactiva"></div>
@@ -89,6 +105,7 @@
             <button class="size-option" type="button" data-size="2XL" role="radio" aria-checked="false">2XL</button>
           </div>
           <p class="stock-note" id="stock-note">Elegí una talla para continuar.</p>
+          <p class="stock-hint" id="stock-hint" role="status" hidden></p>
         </section>
         <dl>
           <div><dt>MODELO</dt><dd id="summary-product">{{ product.name|default:'Remera Oversize' }}</dd></div>
@@ -105,7 +122,7 @@
       </aside>
     </div>
   </main>
-  {{ variants|json_script:'product-variants' }}
+  {{ customizer_products|json_script:'customizer-products' }}
 {% endblock %}
 {% block extra_js %}
   <script src="{% static 'js/customization-api.js' %}" defer></script>

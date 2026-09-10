@@ -16,7 +16,8 @@
   <dialog id="stock-dialog" class="bo-dialog">
     <form id="stock-adjust-form" method="dialog">
       <button class="dialog-close" type="submit" value="cancel" aria-label="Cerrar">×</button>
-      <p class="eyebrow">AJUSTAR STOCK</p><h2 id="stock-dialog-title">Variante</h2>
+      <p class="eyebrow">AJUSTAR STOCK</p><h2 id="stock-dialog-title">Variante</h2><p>Los ingresos cubren primero los pedidos pendientes por antigüedad. No cambian el pago ni el estado de producción.</p>
+      <p id="stock-dialog-meta" class="bo-dialog-meta" role="status" hidden></p>
       <input name="variant_id" type="hidden">
       <label>Operación<select name="movement_type"><option value="RESTOCK">Agregar</option><option value="REMOVE">Retirar</option><option value="SET">Establecer</option></select></label>
       <label>Cantidad<input name="quantity" type="number" min="0" required></label>

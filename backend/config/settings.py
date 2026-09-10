@@ -180,3 +180,7 @@ PAYMENT_CURRENCY = os.getenv("PAYMENT_CURRENCY", "PYG").upper()
 PAYMENT_PUBLIC_KEY = os.getenv("PAYMENT_PUBLIC_KEY", "")
 PAYMENT_SECRET_KEY = os.getenv("PAYMENT_SECRET_KEY", "")
 PAYMENT_WEBHOOK_SECRET = os.getenv("PAYMENT_WEBHOOK_SECRET", "")
+
+# Windows may not register WebP in its MIME database.
+import mimetypes
+mimetypes.add_type("image/webp", ".webp")

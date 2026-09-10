@@ -9,19 +9,21 @@ export class RaycastManager {
   }
 
   cast(event, objects, recursive = false) {
+    objects.forEach((object) => object.updateWorldMatrix(true, false));
     const rect = this.canvas.getBoundingClientRect();
     this.pointer.set(
       ((event.clientX - rect.left) / rect.width) * 2 - 1,
       -((event.clientY - rect.top) / rect.height) * 2 + 1,
     );
     this.raycaster.setFromCamera(this.pointer, this.camera);
-    return this.raycaster.intersectObjects(objects, recursive);
+    return this.raycaster.intersectObjects(objects.filter((object) => object.visible), recursive);
   }
 
   garmentHit(event, meshes) {
     const hit = this.cast(event, meshes)[0];
     if (!hit?.face) return null;
-    const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize();
+    const normal = hit.face.normal.clone().applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld));
+    if (normal.dot(this.raycaster.ray.direction) > 0) normal.negate();
     return { mesh: hit.object, point: hit.point.clone(), normal };
   }
 }

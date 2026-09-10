@@ -95,29 +95,13 @@ def api_home(request):
 
 def create_tshirt(request):
     """Muestra el Custom Lab 3D con persistencia e integración con el carrito."""
-    # Cargamos las variantes junto al producto para evitar consultas adicionales en la plantilla.
-    active_variants = ProductVariant.objects.filter(active=True)
-    product = (
-        Product.objects.filter(active=True)
-        .prefetch_related(Prefetch("variants", queryset=active_variants))
-        .first()
-    )
-    variants = []
-    if product:
-        variants = [
-            {
-                "id": variant.id,
-                "size": variant.size,
-                "color": variant.color,
-                "stock": variant.stock,
-            }
-            for variant in product.variants.all()
-        ]
-    return render(
-        request,
-        "create_tshirt.html",
-        {
-            "product": product,
-            "variants": variants,
-        },
-    )
+    from products.serializers import ProductSerializer
+
+    products = list(Product.objects.filter(active=True).prefetch_related(
+        Prefetch("variants", queryset=ProductVariant.objects.filter(active=True)), "images"
+    ).order_by("id"))
+    product = next((item for item in products if item.garment_type == "tshirt"), None)
+    return render(request, "create_tshirt.html", {
+        "product": product,
+        "customizer_products": ProductSerializer(products, many=True).data,
+    })

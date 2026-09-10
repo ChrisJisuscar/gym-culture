@@ -1,9 +1,264 @@
-.culture-memes .culture-photo {
-  background-size: cover;
-  background-position: center 33%
+/* ============================================================
+   SECCIÓN CULTURAS — Round Carousel 3D
+   Implementación inspirada en Originkit Round Carousel,
+   adaptada al estilo visual de GYM CULTURE.
+   ============================================================ */
+
+/* ── Contenedor + stage 3D ─────────────────────────── */
+
+.culture-carousel {
+  position: relative;
+  width: 100%;
+  max-width: 1250px;
+  margin: 0 auto;
 }
-.culture-urban .culture-photo {
+
+.culture-carousel__stage {
+  position: relative;
+  height: clamp(440px, 66vh, 620px);
+  min-height: 440px;
+  margin: 0 auto;
+  perspective: 3000px;
+  overflow: visible;
+  display: grid;
+  place-items: center;
+  touch-action: pan-y;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.culture-carousel__stage.is-dragging {
+  cursor: grabbing;
+}
+
+.culture-carousel__ring {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+/* ── Cards 3D ──────────────────────────────────────── */
+
+.culture-carousel .culture-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 380px;
+  height: 560px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  transform-style: preserve-3d;
+  border-radius: 12px;
+  border: 1px solid rgba(245, 243, 255, .14);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+  will-change: transform, opacity, filter;
+  transition: filter .35s ease, border-color .35s ease;
+}
+
+/* Base hover (no rompe la rotación 3D que setea JS por transform). */
+.culture-carousel .culture-card:hover {
+  border-color: rgba(192, 132, 252, .6);
+  transform: none;
+}
+
+/* No transición en transform: la posición 3D la controla el JS. */
+.culture-carousel .culture-card,
+.culture-carousel .culture-card:hover {
+  transition-property: border-color, filter, opacity;
+}
+
+/* ── Caras frontal y trasera ───────────────────────── */
+
+.culture-card__face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.culture-card__face:before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background: linear-gradient(0deg, rgba(8, 7, 13, .94) 6%, rgba(8, 7, 13, .18) 68%), linear-gradient(130deg, rgba(124, 58, 237, .22), transparent 48%);
+  pointer-events: none;
+}
+
+.culture-card__back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 12px;
+  background:
+    radial-gradient(120% 120% at 50% 30%, rgba(124, 58, 237, .28), transparent 60%),
+    #0b0a10;
+  box-shadow: inset 0 0 0 1px rgba(245, 243, 255, .06);
+}
+
+/* Silueta tenue de la imagen en la cara trasera interna. */
+.culture-card__back::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--culture-image, none) center / cover no-repeat;
+  opacity: .16;
+  filter: brightness(.6) saturate(.4);
+  transform: scaleX(-1);
+}
+
+/* ── Foto y contenido dentro de la cara ────────────── */
+
+.culture-carousel .culture-photo {
+  position: absolute;
+  inset: 0;
+  background: var(--culture-image) center / cover no-repeat;
+  filter: grayscale(1) contrast(1.14) brightness(.62);
+  transform: none;
+}
+
+.culture-carousel .card-copy {
+  position: absolute;
+  z-index: 2;
+  left: 1.4rem;
+  right: 1.4rem;
+  bottom: 1.35rem;
+}
+
+.culture-carousel .card-copy h3 {
+  font-size: 2.35rem;
+  letter-spacing: -.08em;
+  margin: 0 0 .6rem;
+}
+
+.culture-carousel .card-copy p {
+  margin: 0;
+  color: #d8d2e3;
+  font: .64rem/1.5 'DM Mono', monospace;
+}
+
+/* Hover sobre la card frontal: realce sutil sin romper rotación. */
+.culture-card__face {
+  transition: filter .35s ease;
+}
+.culture-carousel .culture-card:hover .culture-photo {
+  filter: grayscale(.55) contrast(1.18) brightness(.82);
+}
+.culture-carousel .culture-card:hover .card-copy h3 {
+  transform: translateY(-3px);
+}
+.culture-carousel .culture-card:hover .card-copy p {
+  color: #ede9f7;
+}
+.culture-carousel .card-copy h3,
+.culture-carousel .card-copy p {
+  transition: transform .35s ease, color .35s ease;
+}
+
+/* ── Accesorios específicos por cultura ────────────── */
+
+.culture-carousel .culture-gymrat .culture-photo {
+  background-size: 130%;
+  background-position: center 30%;
+  filter: grayscale(1) contrast(1.28) brightness(.66);
+}
+.culture-carousel .culture-gymrat:hover .culture-photo {
+  filter: grayscale(.7) contrast(1.3) brightness(.78);
+}
+
+.culture-carousel .culture-anime .culture-photo {
+  background-position: center;
+}
+.culture-carousel .culture-anime:hover .culture-photo {
+  filter: grayscale(.7) contrast(1.2) brightness(.8);
+}
+
+.culture-carousel .culture-memes {
+  color: var(--text);
+  background: #0b0a10;
+}
+.culture-carousel .culture-memes .card-copy p {
+  color: var(--muted);
+}
+.culture-carousel .culture-memes .culture-photo {
+  background-size: cover;
+  background-position: center 33%;
+  filter: grayscale(1) contrast(1.2) brightness(.5);
+}
+.culture-carousel .culture-memes:hover .culture-photo {
+  filter: grayscale(.7) contrast(1.25) brightness(.62);
+}
+
+.culture-carousel .culture-urban .culture-photo {
   background-position: center;
   background-size: cover;
-  filter: grayscale(.45) contrast(1.08) brightness(.62)
+  filter: grayscale(.45) contrast(1.08) brightness(.62);
+}
+.culture-carousel .culture-urban:hover .culture-photo {
+  filter: grayscale(.2) contrast(1.15) brightness(.78);
+}
+
+/* Desactivar decorados del CSS base que no aplican al carrusel 3D. */
+.culture-carousel .culture-card:has(.culture-photo):before,
+.culture-carousel .culture-gymrat:after,
+.culture-carousel .plate-disc,
+.culture-carousel .anime-asset,
+.culture-carousel .urban-tag,
+.culture-carousel .copyright-index,
+.culture-carousel .card-index {
+  display: none;
+}
+
+/* ── Responsive ────────────────────────────────────── */
+
+/* Notebook / tablets medianas: cards algo menores. */
+@media (max-width: 1024px) {
+  .culture-carousel .culture-card {
+    width: 340px;
+    height: 515px;
+  }
+  .culture-carousel__stage {
+    height: clamp(430px, 64vh, 580px);
+  }
+}
+
+/* Tablets pequeñas: efecto reducido pero usable. */
+@media (max-width: 760px) {
+  .culture-carousel .culture-card {
+    width: 310px;
+    height: 470px;
+  }
+  .culture-carousel__stage {
+    height: 470px;
+    min-height: 470px;
+  }
+  .culture-carousel .card-copy h3 {
+    font-size: 1.9rem;
+  }
+  .culture-carousel .card-copy p {
+    font-size: .56rem;
+  }
+}
+
+/* Móviles: cards grandes y swipe; rotación 3D reducida. */
+@media (max-width: 520px) {
+  .culture-carousel .culture-card {
+    width: 280px;
+    height: 430px;
+  }
+  .culture-carousel__stage {
+    height: 440px;
+    min-height: 440px;
+  }
 }

@@ -3,12 +3,14 @@ import { GLTFLoader } from '/static/vendor/three/loaders/GLTFLoader.js';
 import { OrbitControls } from '/static/vendor/three/controls/OrbitControls.js';
 import { DesignManager } from './customizer-3d/design-manager.js';
 import { RaycastManager } from './customizer-3d/raycast-manager.js';
+import { GARMENTS, getGarment } from './customizer-3d/garments.js';
+import { disposeModel, prepareGarment, getFrameDistance } from './customizer-3d/garment-model.js';
 
 const container = document.querySelector('#customizer-3d-container');
 const statusElement = document.querySelector('#viewer-status');
 
 const Customizer3D = (() => {
-  const MODEL_URL = '/static/models/tshirt.glb';
+  const loader = new GLTFLoader();
   const config = {
     fieldOfView: 40,
     fillRatio: 0.78,
@@ -36,7 +38,9 @@ const Customizer3D = (() => {
   let raycastManager;
   let draggingDesign = false;
   let repositioningDesign = false;
-  let captureDistance;
+  let busy = false;
+  let initialLoad;
+  let lifecycle = 0;
   let resizeObserver;
   let animationFrameId;
   let initialized = false;
@@ -82,77 +86,121 @@ const Customizer3D = (() => {
     camera = new THREE.PerspectiveCamera(config.fieldOfView, width / height, 0.01, 1000);
   };
 
-  const replaceLogoMaterials = (model) => {
-    const materialsBySource = new Map();
-    const sourceMaterials = new Map();
-    let meshCount = 0;
-    model.traverse((object) => {
-      if (!object.isMesh || !object.geometry) return;
-      meshCount += 1;
-      garmentMeshes.push(object);
-      const sources = Array.isArray(object.material) ? object.material : [object.material];
-      const replacements = sources.map((source) => {
-        if (!source?.isMaterial) throw new Error(`La malla ${object.name || '(sin nombre)'} no tiene un material válido.`);
-        sourceMaterials.set(source.uuid, source);
-        if (!materialsBySource.has(source.uuid)) {
-          // RUN está horneado en color, normal y roughness; un material limpio
-          // evita conservar relieve residual y mantiene el volumen geométrico.
-          materialsBySource.set(source.uuid, new THREE.MeshStandardMaterial({
-            name: `${source.name || 'garment'}_plain`,
-            color: currentColor,
-            metalness: 0,
-            roughness: 0.88,
-            side: source.side,
-          }));
-        }
-        return materialsBySource.get(source.uuid);
-      });
-      object.material = Array.isArray(object.material) ? replacements : replacements[0];
-    });
-    if (!meshCount) throw new Error('El modelo no contiene mallas renderizables.');
-    garmentMaterials = [...materialsBySource.values()];
-    const sourceTextures = new Set();
-    sourceMaterials.forEach((material) => {
-      Object.values(material).forEach((value) => {
-        if (value?.isTexture) sourceTextures.add(value);
-      });
-      material.dispose();
-    });
-    sourceTextures.forEach((texture) => texture.dispose());
+  const setBusy = (value) => {
+    busy = value;
+    container.setAttribute('aria-busy', String(value));
+    if (controls) controls.enabled = !value;
+    document.dispatchEvent(new CustomEvent('gymculture:3d-busy', { detail: value }));
   };
 
-  const centerAndFrameGarment = () => {
-    const box = new THREE.Box3().setFromObject(garment);
-    if (box.isEmpty()) throw new Error('No se pudo calcular el volumen de la remera.');
-    const center = box.getCenter(new THREE.Vector3());
-    garment.position.sub(center);
-    const centeredBox = new THREE.Box3().setFromObject(garment);
-    const size = centeredBox.getSize(new THREE.Vector3());
-    garmentSize = size.clone();
-    const halfFov = THREE.MathUtils.degToRad(camera.fov / 2);
-    const verticalDistance = size.y / (2 * config.fillRatio * Math.tan(halfFov));
-    const horizontalDistance = size.x / (2 * config.fillRatio * Math.tan(halfFov) * camera.aspect);
-    const distance = Math.max(verticalDistance, horizontalDistance) + size.z * 0.6;
-    captureDistance = distance;
-
-    camera.position.set(0, size.y * 0.04, distance);
-    camera.near = Math.max(distance * 0.02, 0.01);
+  const frameGarment = () => {
+    if (!garmentSize) return;
+    const distance = getFrameDistance(garmentSize, camera.fov, camera.aspect, config.fillRatio);
+    // Flush OrbitControls damping before assigning the new framing.
+    controls.enableDamping = false;
+    controls.update();
+    controls.target.set(0, 0, 0);
+    camera.position.set(0, garmentSize.y * 0.04, distance);
+    camera.near = Math.max(distance * 0.002, 0.0001);
     camera.far = distance * 20;
     camera.updateProjectionMatrix();
+    controls.minDistance = Math.max(distance * config.controls.minDistanceFactor, garmentSize.z * 1.2);
+    controls.maxDistance = distance * config.controls.maxDistanceFactor;
+    controls.update();
+    controls.enableDamping = true;
+  };
 
+  const createControls = () => {
     controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(0, 0, 0);
     controls.enableDamping = true;
     controls.dampingFactor = config.controls.dampingFactor;
     controls.enablePan = false;
-    controls.minDistance = Math.max(distance * config.controls.minDistanceFactor, size.z * 1.2);
-    controls.maxDistance = distance * config.controls.maxDistanceFactor;
     controls.minPolarAngle = config.controls.minPolarAngle;
     controls.maxPolarAngle = config.controls.maxPolarAngle;
     controls.rotateSpeed = config.controls.rotateSpeed;
     controls.zoomSpeed = config.controls.zoomSpeed;
     controls.zoomToCursor = false;
-    controls.update();
+  };
+
+  const resetDesigns = () => {
+    designManager?.clearResources();
+    draggingDesign = false;
+    repositioningDesign = false;
+    container.classList.remove('is-placing', 'is-dragging-design');
+  };
+
+  // Load first so a failed request leaves the current garment and designs intact.
+  // This is the only place that replaces a model; the scene/renderer/controls survive.
+  const replaceGarment = async (type) => {
+    const definition = getGarment(type);
+    if (!definition?.enabled) throw new Error('Esta prenda todavía no está disponible.');
+    if (garment && window.GymCultureCustomizer.state.garmentType === type) return;
+    const generation = lifecycle;
+    setStatus(`Cargando ${definition.label.toLowerCase()} 3D…`);
+    const gltf = await loader.loadAsync(definition.modelUrl);
+    if (generation !== lifecycle || !initialized) {
+      disposeModel(gltf.scene);
+      throw new Error('El visor se cerró durante la carga.');
+    }
+    let prepared;
+    try {
+      if (!gltf.scene) throw new Error('El GLB no contiene una escena utilizable.');
+      prepared = prepareGarment(gltf.scene, currentColor);
+    } catch (error) {
+      disposeModel(gltf.scene);
+      throw error;
+    }
+    resetDesigns();
+    disposeModel(garment);
+    garment = prepared.model;
+    garmentMeshes = prepared.meshes;
+    garmentMaterials = prepared.materials;
+    garmentSize = prepared.size;
+    scene.add(garment);
+    frameGarment();
+    if (designManager) designManager.garmentSize = garmentSize;
+    else bindDesignInteraction();
+    window.GymCultureCustomizer.state.garmentType = type;
+    applyHoodState(window.GymCultureCustomizer.state.hoodState || "down");
+    container.setAttribute('aria-label', `${definition.label} 3D interactiva`);
+    document.dispatchEvent(new CustomEvent('gymculture:garment-changed', { detail: type }));
+    setStatus('');
+  };
+
+  const applyHoodState = (value) => {
+    const state = window.GymCultureCustomizer.state;
+    const definition = getGarment(state.garmentType);
+    if (!definition.hoodMeshes || !['down', 'up'].includes(value)) return;
+    state.hoodState = value;
+    garmentMeshes.forEach((mesh) => {
+      if (Object.values(definition.hoodMeshes).includes(mesh.name)) mesh.visible = mesh.name === definition.hoodMeshes[value];
+    });
+    designManager?.resources.forEach((resource) => { if (resource.mesh) resource.mesh.visible = resource.sourceMesh?.visible ?? resource.mesh.visible; });
+  };
+  const setHoodState = (value) => { if (!busy) applyHoodState(value); };
+
+  const setGarmentType = async (type) => {
+    if (busy || !getGarment(type)?.enabled) return false;
+    if (garment && type === window.GymCultureCustomizer.state.garmentType) return true;
+    if ((designManager?.designs.length || designManager?.pending) &&
+        !window.confirm('Cambiar de prenda eliminará los diseños actuales.')) return false;
+    const generation = lifecycle;
+    setBusy(true);
+    try {
+      await replaceGarment(type);
+      return true;
+    } catch (error) {
+      if (generation === lifecycle) {
+        setStatus('No se pudo cargar la prenda. Podés volver a intentarlo.', true);
+        console.error('[GYM CULTURE 3D] Falló el cambio de prenda.', error);
+      }
+      return false;
+    } finally {
+      if (generation === lifecycle) {
+        setBusy(false);
+        handleResize();
+      }
+    }
   };
 
   const notifySelection = (design) => {
@@ -160,7 +208,7 @@ const Customizer3D = (() => {
   };
 
   const handlePointerDown = (event) => {
-    if (!designManager || !controls) return;
+    if (busy || !designManager || !controls) return;
     if (repositioningDesign) {
       const hit = raycastManager.garmentHit(event, garmentMeshes);
       if (!hit) return;
@@ -205,7 +253,7 @@ const Customizer3D = (() => {
   };
 
   const handlePointerMove = (event) => {
-    if (!draggingDesign) return;
+    if (busy || !draggingDesign) return;
     event.stopPropagation();
     const hit = raycastManager.garmentHit(event, garmentMeshes);
     if (!hit) return;
@@ -217,7 +265,7 @@ const Customizer3D = (() => {
   };
 
   const handlePointerUp = (event) => {
-    if (!draggingDesign) return;
+    if (busy || !draggingDesign) return;
     draggingDesign = false;
     controls.enabled = true;
     container.classList.remove('is-dragging-design');
@@ -239,33 +287,20 @@ const Customizer3D = (() => {
   };
 
   const handleResize = () => {
-    if (!renderer || !camera) return;
+    if (busy || !renderer || !camera) return;
     const { width, height } = getViewport();
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, config.pixelRatioLimit));
     renderer.setSize(width, height, false);
+    frameGarment();
   };
 
   const render = () => {
     animationFrameId = requestAnimationFrame(render);
-    controls?.update();
-    renderer?.render(scene, camera);
-  };
-
-  const onModelLoaded = (gltf) => {
-    try {
-      if (!gltf.scene) throw new Error('El GLB no contiene una escena utilizable.');
-      garment = gltf.scene;
-      replaceLogoMaterials(garment);
-      scene.add(garment);
-      centerAndFrameGarment();
-      bindDesignInteraction();
-      setStatus('');
-      document.dispatchEvent(new CustomEvent('gymculture:3d-ready'));
-    } catch (error) {
-      setStatus('No se pudo preparar la remera 3D.', true);
-      console.error('[GYM CULTURE 3D] Modelo inválido.', error);
+    if (!busy) {
+      controls?.update();
+      renderer?.render(scene, camera);
     }
   };
 
@@ -279,7 +314,7 @@ const Customizer3D = (() => {
   };
 
   const prepareImage = async (file) => {
-    if (!designManager) throw new Error('Esperá a que termine de cargar la remera.');
+    if (busy || !designManager) throw new Error('Esperá a que termine de cargar la prenda.');
     await designManager.prepareImage(file);
     repositioningDesign = false;
     container.classList.add('is-placing');
@@ -287,21 +322,23 @@ const Customizer3D = (() => {
   };
 
   const prepareText = (settings) => {
-    if (!designManager) throw new Error('Esperá a que termine de cargar la remera.');
+    if (busy || !designManager) throw new Error('Esperá a que termine de cargar la prenda.');
     designManager.prepareText(settings);
     repositioningDesign = false;
     container.classList.add('is-placing');
     setStatus('Hacé clic o tocá la prenda para colocar el texto.');
   };
 
-  const updateSelectedDesign = (changes) => designManager?.updateSelected(changes);
+  const updateSelectedDesign = (changes) => { if (!busy) designManager?.updateSelected(changes); };
   const removeSelectedDesign = () => {
+    if (busy) return;
     repositioningDesign = false;
     container.classList.remove('is-placing');
     designManager?.removeSelected();
     setStatus('');
   };
   const rearmSelectedDesign = () => {
+    if (busy) return;
     const selected = designManager?.selected();
     if (!selected) return;
     repositioningDesign = true;
@@ -313,9 +350,11 @@ const Customizer3D = (() => {
     version: 1,
     garment: {
       type: window.GymCultureCustomizer?.state.garmentType,
+      ...(getGarment(window.GymCultureCustomizer?.state.garmentType)?.hoodMeshes ? { hoodState: window.GymCultureCustomizer.state.hoodState } : {}),
       color: window.GymCultureCustomizer?.state.garmentColor,
       colorHex: window.GymCultureCustomizer?.state.garmentColorHex,
       size: window.GymCultureCustomizer?.state.size,
+      productId: window.GymCultureCustomizer?.state.productId,
       variantId: window.GymCultureCustomizer?.state.selectedVariant?.id ?? null,
     },
     designs: window.GymCultureCustomizer?.state.designs || [],
@@ -326,48 +365,86 @@ const Customizer3D = (() => {
   });
 
   const capturePreviews = async () => {
-    if (!garment || !designManager) throw new Error('La remera todavía no está lista.');
-    const previewRenderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-    previewRenderer.setPixelRatio(1);
-    previewRenderer.setSize(1024, 1024, false);
-    previewRenderer.outputColorSpace = THREE.SRGBColorSpace;
-    previewRenderer.setClearColor(0x100d18, 1);
+    if (designManager?.processing) throw new Error('Esperá a que termine de quitarse el fondo antes de guardar.');
+    if (busy || !garment || !designManager) throw new Error('La prenda todavía no está lista.');
+    setBusy(true);
+    const generation = lifecycle;
+    const pixelRatio = renderer.getPixelRatio();
+    const clearColor = renderer.getClearColor(new THREE.Color());
+    const clearAlpha = renderer.getClearAlpha();
     const previewCamera = camera.clone();
     previewCamera.aspect = 1;
+    // Square previews must be framed independently of the on-screen aspect ratio.
+    const distance = getFrameDistance(garmentSize, previewCamera.fov, 1, config.fillRatio);
+    previewCamera.near = Math.max(distance * 0.002, 0.0001);
+    previewCamera.far = distance * 20;
     previewCamera.updateProjectionMatrix();
     designManager.setSelectionHighlight(false);
     try {
+      renderer.setPixelRatio(1);
+      renderer.setSize(1024, 1024, false);
+      renderer.setClearColor(0x100d18, 1);
       const capture = async (direction) => {
-        previewCamera.position.set(0, garmentSize.y * 0.04, captureDistance * direction);
+        if (generation !== lifecycle) throw new Error('El visor se cerró durante el preview.');
+        previewCamera.position.set(0, garmentSize.y * 0.04, distance * direction);
         previewCamera.lookAt(0, 0, 0);
-        previewRenderer.render(scene, previewCamera);
-        return canvasToBlob(previewRenderer.domElement);
+        renderer.render(scene, previewCamera);
+        // toBlob snapshots immediately, before the next animation frame.
+        return canvasToBlob(renderer.domElement);
       };
       return { front: await capture(1), back: await capture(-1) };
     } finally {
-      designManager.setSelectionHighlight(true);
-      previewRenderer.dispose();
+      if (generation === lifecycle) {
+        designManager.setSelectionHighlight(true);
+        renderer.setPixelRatio(pixelRatio);
+        renderer.setClearColor(clearColor, clearAlpha);
+        setBusy(false);
+        const { width, height } = getViewport();
+        renderer.setSize(width, height, false);
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        renderer.render(scene, camera);
+      }
     }
   };
 
   const loadCustomization = async (configuration) => {
-    if (configuration?.version !== 1 || !configuration.garment || !Array.isArray(configuration.designs)) {
-      throw new Error('La versión de la personalización no es compatible.');
+    if (configuration?.version !== 1 || !getGarment(configuration.garment?.type)?.enabled || !Array.isArray(configuration.designs)) {
+      throw new Error('La versión o prenda de la personalización no es compatible.');
     }
-    const state = window.GymCultureCustomizer.state;
-    Object.assign(state, {
-      garmentType: configuration.garment.type,
-      garmentColor: configuration.garment.color,
-      garmentColorHex: configuration.garment.colorHex,
-      size: configuration.garment.size,
-    });
-    state.designs.splice(0, state.designs.length, ...configuration.designs);
-    setColor(state.garmentColorHex);
-    await designManager.restoreAll(garmentMeshes[0]);
-    document.dispatchEvent(new CustomEvent('gymculture:customization-loaded', { detail: configuration }));
+    if (busy || !garment) throw new Error('Esperá a que termine de cargar la prenda.');
+    const generation = lifecycle;
+    setBusy(true);
+    try {
+      await replaceGarment(configuration.garment.type);
+      resetDesigns();
+      const state = window.GymCultureCustomizer.state;
+      Object.assign(state, {
+        productId: configuration.garment.productId ?? state.productId,
+        hoodState: configuration.garment.hoodState || "down",
+        garmentColor: configuration.garment.color,
+        garmentColorHex: configuration.garment.colorHex,
+        size: configuration.garment.size,
+      });
+      state.designs.splice(0, state.designs.length, ...JSON.parse(JSON.stringify(configuration.designs)));
+      setColor(state.garmentColorHex);
+      const failedAssets = await designManager.restoreAll(garmentMeshes);
+      applyHoodState(state.hoodState);
+      document.dispatchEvent(new CustomEvent('gymculture:customization-loaded', { detail: configuration }));
+      setStatus(failedAssets.length ? `Se restauraron ${state.designs.length - failedAssets.length} de ${state.designs.length} diseños. Revisá los que no pudieron cargarse.` : '');
+    } catch (error) {
+      if (generation === lifecycle) setStatus('No se pudo restaurar la personalización.', true);
+      throw error;
+    } finally {
+      if (generation === lifecycle) {
+        setBusy(false);
+        handleResize();
+      }
+    }
   };
 
   const dispose = () => {
+    lifecycle += 1;
     if (animationFrameId) cancelAnimationFrame(animationFrameId);
     resizeObserver?.disconnect();
     window.removeEventListener('resize', handleResize);
@@ -377,8 +454,12 @@ const Customizer3D = (() => {
     renderer?.domElement.removeEventListener('pointerup', handlePointerUp, true);
     renderer?.domElement.removeEventListener('pointercancel', handlePointerUp, true);
     designManager?.dispose();
-    garment?.traverse((object) => object.geometry?.dispose());
-    garmentMaterials.forEach((material) => material.dispose());
+    disposeModel(garment);
+    garment = null;
+    garmentMeshes = [];
+    garmentMaterials = [];
+    garmentSize = null;
+    designManager = null;
     renderer?.dispose();
     renderer?.domElement.remove();
     initialized = false;
@@ -392,14 +473,27 @@ const Customizer3D = (() => {
       createScene();
       createCamera();
       createRenderer();
+      createControls();
       resizeObserver = new ResizeObserver(handleResize);
       resizeObserver.observe(container);
       window.addEventListener('resize', handleResize, { passive: true });
       render();
-      new GLTFLoader().load(MODEL_URL, onModelLoaded, undefined, (error) => {
-        setStatus('No se pudo cargar la remera 3D. Intentá recargar la página.', true);
-        console.error('[GYM CULTURE 3D] Falló la carga de tshirt.glb.', error);
-      });
+      setBusy(true);
+      const generation = lifecycle;
+      initialLoad = replaceGarment(window.GymCultureCustomizer.state.garmentType)
+        .catch((error) => {
+          if (generation === lifecycle) {
+            setStatus('No se pudo cargar la prenda 3D. Elegí una prenda para reintentar.', true);
+            console.error('[GYM CULTURE 3D] Falló la carga inicial.', error);
+          }
+        })
+        .finally(() => {
+          if (generation === lifecycle) {
+            setBusy(false);
+            handleResize();
+            if (garment) document.dispatchEvent(new CustomEvent('gymculture:3d-ready'));
+          }
+        });
     } catch (error) {
       setStatus('Tu navegador no pudo iniciar el visor 3D.', true);
       console.error('[GYM CULTURE 3D] Falló la inicialización WebGL.', error);
@@ -410,8 +504,11 @@ const Customizer3D = (() => {
   return {
     init, dispose, setColor, prepareImage, prepareText,
     updateSelectedDesign, removeSelectedDesign, rearmSelectedDesign,
-    getCustomizationState, capturePreviews, loadCustomization,
-    isReady: () => Boolean(designManager),
+    removeBackground: () => designManager?.removeBackground(),
+    getCustomizationState, capturePreviews, loadCustomization, setGarmentType, setHoodState,
+    garments: GARMENTS,
+    whenReady: () => initialLoad,
+    isReady: () => Boolean(garment && designManager && !busy),
   };
 })();
 

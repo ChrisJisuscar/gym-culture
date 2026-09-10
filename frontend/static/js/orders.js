@@ -61,13 +61,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const itemMarkup = (item) => {
     const custom = item.customization;
     const previews = custom ? `<div class="order-previews">${custom.preview_front_url ? `<figure><img src="${escapeHtml(custom.preview_front_url)}" alt="Vista frontal"><figcaption>Frente</figcaption></figure>` : ''}${custom.preview_back_url ? `<figure><img src="${escapeHtml(custom.preview_back_url)}" alt="Vista trasera"><figcaption>Espalda</figcaption></figure>` : ''}</div>` : '';
-    return `<article class="order-line"><div><h3>${escapeHtml(item.product_name)}</h3>${item.is_customized ? '<span class="customized-label">PERSONALIZADO</span>' : ''}<p>${escapeHtml(item.color || 'Sin color')} / ${escapeHtml(item.size || 'Sin talla')} · Cantidad ${item.quantity}</p></div><strong>${money(item.subtotal)}</strong>${previews}</article>`;
+    return `<article class="order-line"><div><h3>${escapeHtml(item.product_name)}</h3>${availabilityMarkup(item)}${item.is_customized ? '<span class="customized-label">PERSONALIZADO</span>' : ''}<p>${escapeHtml(item.color || 'Sin color')} / ${escapeHtml(item.size || 'Sin talla')} · Cantidad ${item.quantity}</p></div><strong>${money(item.subtotal)}</strong>${previews}</article>`;
   };
   const paymentsMarkup = (order) => {
     const attempts = order.payments?.map((payment) => `<li><strong>${escapeHtml(payment.status_display)}</strong><span>${money(payment.amount)} ${escapeHtml(payment.currency)} · ${escapeHtml(payment.provider)}${payment.payment_method ? ` · ${escapeHtml(payment.payment_method)}` : ''}</span>${payment.can_simulate && ['PENDING', 'PROCESSING'].includes(payment.status) ? `<div class="mock-payment-actions"><button type="button" data-mock-payment="${payment.id}" data-outcome="approved">Simular aprobación</button><button type="button" data-mock-payment="${payment.id}" data-outcome="rejected">Simular rechazo</button><button type="button" data-mock-payment="${payment.id}" data-outcome="pending">Mantener pendiente</button></div>` : ''}</li>`).join('');
     return `<section class="payment-summary"><h3>Pago</h3><p>Estado: <strong>${escapeHtml(order.payment_status_display)}</strong></p>${attempts ? `<ul>${attempts}</ul>` : '<p>No hay intentos de pago.</p>'}</section>`;
   };
-  const detailMarkup = (order) => `<section class="order-card order-detail-card"><div class="order-number-row"><div><small>NÚMERO</small><h2>${escapeHtml(order.order_number)}</h2></div><span class="status-pill status-${order.status.toLowerCase()}">${escapeHtml(order.status_display)}</span></div><p class="order-date">${date(order.created_at)}</p><div class="order-lines">${order.items.map(itemMarkup).join('')}</div><dl class="checkout-totals"><div><dt>Subtotal</dt><dd>${money(order.subtotal)}</dd></div><div><dt>Envío</dt><dd>${money(order.shipping_cost)}</dd></div><div class="total"><dt>Total</dt><dd>${money(order.total)}</dd></div></dl>${paymentsMarkup(order)}</section>`;
+  const availabilityMarkup = (item) => item.availability === "AWAITING_STOCK" ? '<p class="stock-warning">PENDIENTE DE STOCK. La disponibilidad se gestionara antes de produccion.</p>' : "";
+  const detailMarkup = (order) => `<section class="order-card order-detail-card"><div class="order-number-row"><div><small>NÚMERO</small><h2>${escapeHtml(order.order_number)}</h2></div><span class="status-pill status-${order.status.toLowerCase()}">${escapeHtml(order.status_display)}</span></div><p class="order-date">${date(order.created_at)}</p><div class="order-lines">${order.items.map(itemMarkup).join('')}</div><dl class="checkout-totals"><div><dt>Subtotal</dt><dd>${money(order.subtotal)}</dd></div><div><dt>Envío</dt><dd>${money(order.shipping_cost)}</dd></div><div class="total"><dt>Total</dt><dd>${money(order.total)}</dd></div></dl>${availabilityMarkup(order)}${paymentsMarkup(order)}</section>`;
 
   const loadCheckout = async () => {
     const form = document.querySelector('#checkout-form');
@@ -79,10 +80,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelector('#confirm-order').disabled = true;
         return;
       }
-      document.querySelector('#checkout-items').innerHTML = cart.items.map((item) => `<article><div><strong>${escapeHtml(item.product_name)}</strong><small>${escapeHtml(item.variant_color || '')} / ${escapeHtml(item.variant_size || '')} · ${item.quantity} u.</small>${item.is_customized ? '<em>PERSONALIZADO</em>' : ''}</div><b>${money(item.subtotal)}</b></article>`).join('');
+      document.querySelector('#checkout-items').innerHTML = cart.items.map((item) => `<article><div><strong>${escapeHtml(item.product_name)}</strong><small>${escapeHtml(item.variant_color || '')} / ${escapeHtml(item.variant_size || '')} · ${item.quantity} u.</small>${availabilityMarkup(item)}${item.is_customized ? '<em>PERSONALIZADO</em>' : ''}</div><b>${money(item.subtotal)}</b></article>`).join('');
       document.querySelector('#checkout-subtotal').textContent = money(cart.subtotal);
       document.querySelector('#checkout-total').textContent = money(cart.subtotal);
-      form.elements.first_name.value = profile.first_name || profile.username || '';
+      form.elements.first_name.value = profile.first_name || '';
       form.elements.last_name.value = profile.last_name || '';
       form.elements.email.value = profile.email || '';
     } catch (error) {

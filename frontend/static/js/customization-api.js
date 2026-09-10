@@ -8,15 +8,18 @@
     const configuration = JSON.parse(JSON.stringify(state));
     const assets = new Map();
     for (const design of configuration.designs) {
-      if (design.type !== 'image' || !design.source?.dataUrl) continue;
-      const source = design.source;
+      if (design.type !== 'image') continue;
+      for (const [sourceField, keyField] of [['source', 'assetKey'], ['originalSource', 'originalAssetKey']]) {
+      const source = design[sourceField];
+      if (!source?.dataUrl) continue;
       let assetKey = assets.get(source.dataUrl)?.key;
       if (!assetKey) {
         assetKey = crypto.randomUUID?.() || `asset-${Date.now()}-${assets.size}`;
         assets.set(source.dataUrl, { key: assetKey, source });
       }
-      design.assetKey = assetKey;
-      delete design.source;
+      design[keyField] = assetKey;
+      delete design[sourceField];
+      }
     }
     const form = new FormData();
     form.append('product', productId);

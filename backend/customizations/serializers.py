@@ -76,8 +76,6 @@ class CustomizationWriteSerializer(serializers.Serializer):
         product, variant = attrs["product"], attrs["variant"]
         if variant.product_id != product.id:
             raise serializers.ValidationError({"variant": "La variante no pertenece al producto."})
-        if variant.stock < 1:
-            raise serializers.ValidationError({"variant": "La variante no tiene stock."})
         validate_uploaded_image(attrs["preview_front"], "preview_front")
         validate_uploaded_image(attrs["preview_back"], "preview_back")
         instance = self.instance
@@ -86,7 +84,7 @@ class CustomizationWriteSerializer(serializers.Serializer):
         asset_uploads = [key for key in self.context["request"].FILES if key.startswith("asset_")]
         if len(asset_uploads) > MAX_ASSETS_PER_CUSTOMIZATION:
             raise serializers.ValidationError({"assets": "Se superó el máximo de 20 archivos."})
-        referenced_keys = {str(item.get("assetKey")) for item in attrs["configuration"]["designs"] if item.get("type") == "image" and item.get("assetKey")}
+        referenced_keys = {str(item[key]) for item in attrs["configuration"]["designs"] if item.get("type") == "image" for key in ("assetKey", "originalAssetKey") if item.get(key)}
         uploaded_keys = {key.removeprefix("asset_") for key in asset_uploads}
         if referenced_keys != uploaded_keys:
             raise serializers.ValidationError({"assets": "Los archivos no coinciden con las referencias de la configuración."})
@@ -102,8 +100,18 @@ class CustomizationWriteSerializer(serializers.Serializer):
         stale_assets = []
         try:
             with transaction.atomic():
+                cart, _ = Cart.objects.get_or_create(user=request.user)
+                cart = Cart.objects.select_for_update().get(pk=cart.pk)
+                product = Product.objects.select_for_update().get(pk=data["product"].pk)
+                variant = ProductVariant.objects.select_for_update().select_related("product").get(pk=data["variant"].pk)
+                if not product.active or not variant.active or variant.product_id != product.pk:
+                    raise serializers.ValidationError({"variant": "Producto o variante no disponible."})
+                related_items = cart.items.filter(customization=self.instance) if self.instance else cart.items.none()
+                data["product"], data["variant"] = product, variant
                 if self.instance:
                     customization = Customization.objects.select_for_update().get(pk=self.instance.pk, user=request.user)
+                    if customization.is_frozen:
+                        raise serializers.ValidationError({"detail": "La personalizacion ya fue comprada."})
                     old_previews = [customization.preview_front.name, customization.preview_back.name]
                     customization.product = data["product"]
                     customization.variant = data["variant"]
@@ -126,23 +134,27 @@ class CustomizationWriteSerializer(serializers.Serializer):
 
                 configuration = json.loads(json.dumps(data["configuration"]))
                 for design in configuration["designs"]:
-                    key = design.pop("assetKey", None)
-                    if key:
-                        asset = key_to_asset[key]
-                        design["assetId"] = str(asset.id)
+                    for key_field, id_field in (("assetKey", "assetId"), ("originalAssetKey", "originalAssetId")):
+                        key = design.pop(key_field, None)
+                        if key:
+                            design[id_field] = str(key_to_asset[key].id)
                 assets_by_id = {str(asset.id): asset for asset in customization.assets.all()}
                 for design in configuration["designs"]:
                     if design.get("type") == "image":
                         design["assetUrl"] = assets_by_id[str(design["assetId"])].file.url
+                        if design.get("originalAssetId"):
+                            design["originalAssetUrl"] = assets_by_id[str(design["originalAssetId"])].file.url
                 valid_ids = set(customization.assets.values_list("id", flat=True))
                 validate_configuration(configuration, data["variant"], valid_ids)
                 customization.configuration = configuration
                 customization.save(update_fields=["configuration", "updated_at"])
 
-                referenced_ids = {item.get("assetId") for item in configuration["designs"] if item.get("type") == "image"}
+                referenced_ids = {str(item[key]) for item in configuration["designs"] if item.get("type") == "image" for key in ("assetId", "originalAssetId") if item.get(key)}
                 for asset in list(customization.assets.all()):
                     if str(asset.id) not in referenced_ids:
                         stale_assets.append(asset)
+
+                related_items.update(product=product, variant=variant)
 
                 if data.get("add_to_cart"):
                     cart, _ = Cart.objects.get_or_create(user=request.user)

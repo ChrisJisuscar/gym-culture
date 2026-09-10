@@ -6,6 +6,9 @@
   <link rel="stylesheet" href="{% static 'css/hero-overrides.css' %}">
   <link rel="stylesheet" href="{% static 'css/engagement-overrides.css' %}">
 {% endblock %}
+{% block extra_js %}
+  <script src="{% static 'js/culture-carousel.js' %}" defer></script>
+{% endblock %}
 {% block content %}
   {% include 'components/navbar.html' %}
   <main id="top">

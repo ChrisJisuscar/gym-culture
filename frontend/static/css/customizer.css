@@ -16,11 +16,20 @@
 .color-option.is-selected { outline: 2px solid var(--lavender); outline-offset: 3px }
 .size-option { min-width: 2.7rem; padding: .65rem .45rem; border: 1px solid var(--line); background: transparent; color: var(--text); font: .68rem 'DM Mono', monospace; cursor: pointer }
 .size-option.is-selected { border-color: var(--lavender); background: #24113f }
-.size-option.is-out-of-stock { border-style: dashed; border-color: rgba(239,139,154,.7); color: #ef8b9a }
+.size-option.is-unavailable { border-style: dashed; border-color: rgba(239,139,154,.7); color: #ef8b9a }
 .field-value, .stock-note { margin: .95rem 0 0; color: var(--muted); font-size: .68rem }
 .stock-note.is-error, .viewer-status.is-error { color: #ef8b9a }
 .editor-panel { display: flex; min-height: clamp(650px, 72vh, 860px); padding: 1.45rem; flex-direction: column }
 .editor-top { padding-bottom: 1rem }
+.garment-selector { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; margin-bottom: 1.1rem }
+.garment-option { min-height: 52px; padding: .7rem .35rem; border: 1px solid var(--line); background: #09070f; color: #f5f3ff; font: 500 .66rem 'DM Mono', monospace; letter-spacing: .04em; cursor: pointer; transition: background .18s, border-color .18s, box-shadow .18s, transform .18s }
+.garment-option:not(:disabled):hover { border-color: var(--lavender); background: #211331; transform: translateY(-1px) }
+.garment-option.is-active { border-color: var(--lavender); background: #28143e; box-shadow: 0 0 16px rgba(168,85,247,.15) }
+.garment-option:focus-visible { outline: 2px solid #dcc5ff; outline-offset: 3px }
+.garment-option:disabled { opacity: .45; cursor: not-allowed }
+.garment-option span { display: block; margin-top: .3rem; font-size: .52rem; letter-spacing: 0 }
+.garment-note { margin: 0 0 1rem; color: var(--lavender); font-size: .68rem; line-height: 1.5 }
+@media (prefers-reduced-motion: reduce) { .garment-option { transition: none } .garment-option:not(:disabled):hover { transform: none } }
 .editor-top p { margin-top: .45rem; font-size: .65rem }
 .shirt-stage { position: relative; display: grid; flex: 1; min-height: 590px; overflow: hidden; place-items: center; background: radial-gradient(ellipse at center, rgba(55,37,76,.65), transparent 63%), linear-gradient(135deg,#0d0b13,#16101f) }
 .customizer-3d-container { position: absolute; inset: 0 }
@@ -37,6 +46,7 @@
 .price-list p { display: flex; justify-content: space-between; color: var(--muted); font-size: .7rem }
 .price-list .total { padding-top: 1rem; border-top: 1px solid var(--line); color: var(--text); font-weight: 700 }
 .add-cart { width: 100%; margin-top: 1rem }
+.add-cart:disabled { opacity: .45; cursor: not-allowed }
 .cart-note { color: var(--lavender); font-size: .65rem; text-align: center }
 .control-label, .range-field, .color-field { display: flex; justify-content: space-between; margin: .8rem 0 .4rem; color: var(--muted); font: 500 .56rem 'DM Mono', monospace; letter-spacing: .06em }
 .editor-input { width: 100%; min-height: 42px; padding: .7rem .75rem; border: 1px solid var(--line); border-radius: 0; outline: 0; background: #08070d; color: var(--text) }
@@ -95,3 +105,31 @@
   .summary-panel dd { max-width: 58%; overflow-wrap: anywhere }
   .selection-actions { grid-template-columns: 1fr }
 }
+
+#hood-controls[hidden] { display: none; }
+#stock-note.is-warning { color: #e8c77a; }
+
+.color-option.is-unavailable { filter: saturate(.3) opacity(.4); cursor: not-allowed; box-shadow: inset 0 0 0 2px rgba(239,139,154,.35) }
+.color-option:disabled { cursor: not-allowed }
+
+.stock-hint { margin: .5rem 0 0; color: var(--lavender); font-size: .62rem; line-height: 1.5 }
+.stock-hint[hidden] { display: none }
+
+.hood-controls { display: flex; min-width: 0; flex-direction: column; gap: .45rem; z-index: 2 }
+.hood-controls-label { margin: 0 0 .1rem; color: var(--lavender); font: 500 .54rem 'DM Mono', monospace; letter-spacing: .12em; text-align: center; text-transform: uppercase; user-select: none }
+.hood-controls button { display: flex; min-height: 42px; align-items: center; justify-content: center; gap: .4rem; padding: .5rem .6rem; border: 1px solid var(--purple); border-radius: 999px; background: rgba(16,13,24,.84); color: #f5f3ff; font: 500 .6rem 'DM Mono', monospace; letter-spacing: .04em; cursor: pointer; transition: background .22s, border-color .22s, box-shadow .22s, color .22s, transform .22s }
+.hood-controls button:not(:disabled):hover { border-color: var(--lavender); background: #28143e; color: var(--lavender); transform: translateY(-2px); box-shadow: 0 0 14px rgba(168,85,247,.22) }
+.hood-controls button.is-active { border-color: var(--purple); background: #341a55; color: #fff; box-shadow: 0 0 16px rgba(168,85,247,.35), inset 0 0 0 1px rgba(216,199,255,.25) }
+.hood-controls button:focus-visible { outline: 2px solid #dcc5ff; outline-offset: 2px }
+.hood-controls button:disabled { opacity: .45; cursor: not-allowed }
+@media (prefers-reduced-motion: reduce) { .hood-controls button { transition: none } .hood-controls button:not(:disabled):hover { transform: none } }
+@media (min-width: 961px) {
+  .editor-panel { position: relative }
+  .hood-controls { position: absolute; left: .6rem; top: 50%; transform: translateY(-50%); width: 92px }
+}
+@media (max-width: 960px) {
+  .hood-controls { position: static; transform: none; width: 100%; flex-direction: row; flex-wrap: wrap; justify-content: center; margin: 0 0 .9rem }
+  .hood-controls-label { flex-basis: 100% }
+}
+
+#remove-background[hidden] { display: none }

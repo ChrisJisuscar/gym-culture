@@ -6,8 +6,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
   const money = (value) => `G ${new Intl.NumberFormat('es-PY', { maximumFractionDigits: 0 }).format(Number(value || 0))}`;
   const date = (value) => new Intl.DateTimeFormat('es-PY', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
-  const labels = { PENDING: 'Pendiente', CONFIRMED: 'Confirmado', PREPARING: 'En preparación', SHIPPED: 'Enviado', DELIVERED: 'Entregado', CANCELLED: 'Cancelado' };
-  const navSection = { 'product-detail': 'products', 'customer-detail': 'customers' }[root.dataset.backofficeView] || root.dataset.backofficeView;
+  const states = {
+    PENDING: ['Pendiente','pending'], CONFIRMED: ['Confirmado','confirmed'],
+    PREPARING: ['Preparando','preparing'], SHIPPED: ['Enviado','shipped'],
+    DELIVERED: ['Entregado','delivered'], CANCELLED: ['Cancelado','cancelled'],
+    AVAILABLE: ['Disponible','available'], AWAITING_STOCK: ['Pendiente de stock','awaiting-stock'],
+  };
+  const labels = Object.fromEntries(Object.entries(states).map(([key,value]) => [key,value[0]]));
+  const navSection = { detail: 'orders', 'product-detail': 'products', 'customer-detail': 'customers' }[root.dataset.backofficeView] || root.dataset.backofficeView;
   document.querySelector(`[data-nav-section="${navSection}"]`)?.classList.add('is-active');
   const api = async (url, options = {}) => {
     let response;
@@ -19,19 +25,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = new Error(response.status === 403 ? 'No tenés permisos para acceder al backoffice.' : (data.detail || Object.values(data).flat(Infinity).join(' ') || 'No se pudo cargar la información.'));
+      const error = new Error(response.status >= 500 ? 'No pudimos completar la operacion. Intenta de nuevo.' : response.status === 403 ? 'No tenés permisos para acceder al backoffice.' : (data.detail || Object.values(data).flat(Infinity).join(' ') || 'No se pudo cargar la información.'));
       error.status = response.status;
       throw error;
     }
     return data;
   };
   const fail = (error) => {
-    feedback.textContent = error.message;
+    feedback.textContent = (error.status ? error.message : "No pudimos cargar la informacion. Intenta nuevamente.") || 'No pudimos completar la operacion.';
     feedback.classList.add('is-error');
     if (error.status === 401) auth.redirectToLogin();
   };
-  const status = (value) => `<span class="bo-status status-${value.toLowerCase()}">${escapeHtml(labels[value] || value)}</span>`;
-  const rows = (orders) => orders.length ? `<div class="bo-table-wrap"><table class="bo-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Fecha</th><th>Items</th><th>Total</th><th>Estado</th></tr></thead><tbody>${orders.map((order) => `<tr><td><a href="/backoffice/orders/${order.id}/">${escapeHtml(order.order_number)}</a></td><td>${escapeHtml(order.customer_name || '—')}<small>${escapeHtml(order.customer_email || '')}</small></td><td>${date(order.created_at)}</td><td>${order.item_count}</td><td>${money(order.total)}</td><td>${status(order.status)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="bo-empty">No hay pedidos para mostrar.</div>';
+  const status = (value) => {
+    const [label, className] = states[value] || ['Sin estado','unknown'];
+    return `<span class="bo-status status-${className}">${escapeHtml(label)}</span>`;
+  };
+  document.querySelectorAll('#bo-filters select[name="status"] option').forEach(option => { if (labels[option.value]) option.textContent = labels[option.value]; });
+  const rows = (orders) => orders.length ? `<div class="bo-table-wrap"><table class="bo-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Fecha</th><th>Items</th><th>Total</th><th>Estado</th></tr></thead><tbody>${orders.map((order) => `<tr><td><a href="/backoffice/orders/${order.id}/">${escapeHtml(order.order_number)}</a><small>${escapeHtml(order.description)}</small></td><td>${escapeHtml(order.customer_name || '—')}<small>${escapeHtml(order.customer_email || '')}</small></td><td>${date(order.created_at)}</td><td>${order.item_count}</td><td>${money(order.total)}</td><td>${status(order.status)}${availabilityBadge(order)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="bo-empty">No hay pedidos para mostrar.</div>';
 
   const loadDashboard = async () => {
     try {
@@ -54,23 +64,41 @@ document.addEventListener('DOMContentLoaded', () => {
   const designMarkup = (design) => design.type === 'text'
     ? `<li><strong>Texto: “${escapeHtml(design.text)}”</strong><span>${escapeHtml(design.fontFamily)} · ${escapeHtml(design.color)} · ${Number(design.rotation || 0)}°</span></li>`
     : `<li><strong>Diseño gráfico</strong><span>Rotación ${Number(design.rotation || 0)}° · Escala ${Number(design.scale || 1).toFixed(2)}</span></li>`;
+  const availabilityBadge = (item) => status(item.availability);
+  const previewCard = (item) => {
+    const custom = item.customization;
+    const images = [custom?.preview_front_url, custom?.preview_back_url, item.product_image].filter(Boolean);
+    if (!images.length) return '<div class="bo-image-empty">Sin imagen registrada</div>';
+    return `<figure class="bo-item-preview"><img src="${escapeHtml(images[0])}" data-fallbacks="${escapeHtml(JSON.stringify(images.slice(1)))}" alt="${escapeHtml(item.product_name)}" loading="lazy"></figure>`;
+  };
+  document.addEventListener('error', event => {
+    const img = event.target;
+    if (!(img instanceof HTMLImageElement)) return;
+    const fallbacks = JSON.parse(img.dataset.fallbacks || '[]');
+    if (fallbacks.length) { img.src = fallbacks.shift(); img.dataset.fallbacks = JSON.stringify(fallbacks); }
+    else { const empty = document.createElement('span'); empty.className = 'bo-image-empty'; empty.textContent = 'Imagen no disponible'; img.replaceWith(empty); }
+  }, true);
+  const shortageBlock = (item) => item.shortage_quantity > 0 && item.availability !== 'CANCELLED' ? `<section class="bo-demand-card"><strong>PEDIDOS PENDIENTES</strong><p>${item.shortage_quantity === 1 ? "Falta 1 unidad" : `Faltan ${item.shortage_quantity} unidades`} para este pedido.</p><a class="bo-button" href="/backoffice/stock/?variant=${item.variant}">AGREGAR STOCK</a></section>` : '';
   const itemDetail = (item) => {
     const custom = item.customization;
-    const previews = custom ? `<div class="bo-previews">${custom.preview_front_url ? `<figure><img src="${escapeHtml(custom.preview_front_url)}" alt="Preview frontal"><figcaption>Frente</figcaption></figure>` : ''}${custom.preview_back_url ? `<figure><img src="${escapeHtml(custom.preview_back_url)}" alt="Preview trasero"><figcaption>Espalda</figcaption></figure>` : ''}</div>` : '';
+    const hood = custom?.garment?.type === "hoodie" ? `<p>Capucha: ${custom.garment.hoodState === "up" ? "Alzada" : "Bajada"}</p>` : "";
     const designs = custom?.designs?.length ? `<h4>Configuración</h4><ul class="bo-designs">${custom.designs.map(designMarkup).join('')}</ul>` : '';
     const assets = item.production_assets?.length ? `<h4>Archivos originales</h4><div class="bo-assets">${item.production_assets.map((asset) => `<article><div><strong>${escapeHtml(asset.original_name)}</strong><span>${escapeHtml(asset.mime_type)} · ${asset.width} × ${asset.height} · ${(Number(asset.file_size) / 1048576).toFixed(2)} MB</span></div><button class="bo-button" type="button" data-asset-download="${escapeHtml(asset.download_url)}" data-filename="${escapeHtml(asset.original_name)}">Descargar</button></article>`).join('')}</div>` : '';
-    return `<section class="bo-panel bo-order-item"><header><div><h3>${escapeHtml(item.product_name)}</h3>${item.is_customized ? '<em>PERSONALIZADO</em>' : ''}<p>${escapeHtml(item.color || '—')} / ${escapeHtml(item.size || '—')} · ${item.quantity} u.</p></div><strong>${money(item.subtotal)}</strong></header>${previews}${designs}${assets}</section>`;
+    const quantities = `<dl class="bo-quantities"><div><dt>Solicitado</dt><dd>${item.quantity}</dd></div><div><dt>Asignado</dt><dd>${item.allocated_quantity}</dd></div><div><dt>Faltante</dt><dd>${item.shortage_quantity}</dd></div></dl>`;
+    return `<section class="bo-panel bo-order-item"><div class="bo-item-layout">${previewCard(item)}<div><h3>${escapeHtml(item.product_name)}</h3><p>${escapeHtml(item.color)} / ${escapeHtml(item.size)}</p><p class="bo-kind">${item.is_customized ? 'Personalizado' : 'Normal'}</p>${availabilityBadge(item)}${quantities}${hood}<strong>${money(item.subtotal)}</strong>${shortageBlock(item)}</div></div>${designs}${assets}</section>`;
+
   };
   const renderDetail = (order) => {
     const transitionOptions = order.allowed_transitions.map((value) => `<option value="${value}">${escapeHtml(labels[value])}</option>`).join('');
     const paymentRows = order.payments.length ? order.payments.map((payment) => `<tr><td>${escapeHtml(payment.status_display)}</td><td>${money(payment.amount)} ${escapeHtml(payment.currency)}</td><td>${escapeHtml(payment.payment_method || '—')}</td><td>${escapeHtml(payment.provider)}</td><td>${escapeHtml(payment.external_id || '—')}</td><td>${date(payment.paid_at || payment.created_at)}</td></tr>`).join('') : '<tr><td colspan="6">Sin intentos de pago.</td></tr>';
-    return `<section class="bo-summary-grid"><article class="bo-panel"><small>PEDIDO</small><h2>${escapeHtml(order.order_number)}</h2><p>${date(order.created_at)}</p>${status(order.status)}${transitionOptions ? `<form id="status-form"><select name="status">${transitionOptions}</select><button class="bo-button" type="submit">CAMBIAR ESTADO</button></form>` : '<p>Estado final.</p>'}</article><article class="bo-panel"><small>CLIENTE</small><h3>${escapeHtml(order.customer.first_name)} ${escapeHtml(order.customer.last_name)}</h3><p>${escapeHtml(order.customer.email)}<br>${escapeHtml(order.customer.phone)}</p></article><article class="bo-panel"><small>ENTREGA</small><p>${escapeHtml(order.shipping.address)}<br>${escapeHtml(order.shipping.city)}, ${escapeHtml(order.shipping.department)}<br>${escapeHtml(order.shipping.reference || '')}</p></article><article class="bo-panel"><small>TOTAL</small><h2>${money(order.total)}</h2><p>Pago: ${escapeHtml(order.payment_status_display)}</p></article></section><section class="bo-panel"><h3>Pago</h3><div class="bo-table-wrap"><table class="bo-table"><thead><tr><th>Estado</th><th>Monto</th><th>Método</th><th>Proveedor</th><th>External ID</th><th>Fecha</th></tr></thead><tbody>${paymentRows}</tbody></table></div></section><div class="bo-items">${order.items.map(itemDetail).join('')}</div><section class="bo-panel"><h3>Historial de estados</h3><ol class="bo-history">${order.status_history.length ? order.status_history.map((entry) => `<li><span>${escapeHtml(entry.old_status)} → ${escapeHtml(entry.new_status)}</span><small>${escapeHtml(entry.changed_by || 'Sistema')} · ${date(entry.created_at)}</small></li>`).join('') : '<li>Sin cambios registrados.</li>'}</ol></section>`;
+    return `<section class="bo-summary-grid"><article class="bo-panel"><small>PEDIDO</small><h2>${escapeHtml(order.order_number)}</h2><p>${escapeHtml(order.description)}</p><p>${date(order.created_at)}</p>${status(order.status)}${availabilityBadge(order)}${transitionOptions ? `<form id="status-form"><select name="status">${transitionOptions}</select><button class="bo-button" type="submit">CAMBIAR ESTADO</button></form>` : '<p>Estado final.</p>'}</article><article class="bo-panel"><small>CLIENTE</small><h3>${escapeHtml(order.customer.first_name)} ${escapeHtml(order.customer.last_name)}</h3><p>${escapeHtml(order.customer.email)}<br>${escapeHtml(order.customer.phone)}</p></article><article class="bo-panel"><small>ENTREGA</small><p>${escapeHtml(order.shipping.address)}<br>${escapeHtml(order.shipping.city)}, ${escapeHtml(order.shipping.department)}<br>${escapeHtml(order.shipping.reference || '')}</p></article><article class="bo-panel"><small>TOTAL</small><h2>${money(order.total)}</h2><p>Pago: ${escapeHtml(order.payment_status_display)}</p></article></section><section class="bo-panel"><h3>Pago</h3><div class="bo-table-wrap"><table class="bo-table"><thead><tr><th>Estado</th><th>Monto</th><th>Método</th><th>Proveedor</th><th>External ID</th><th>Fecha</th></tr></thead><tbody>${paymentRows}</tbody></table></div></section><div class="bo-items">${order.items.map(itemDetail).join('')}</div><section class="bo-panel"><h3>Historial de estados</h3><ol class="bo-history">${order.status_history.length ? order.status_history.map((entry) => `<li><span>${escapeHtml(entry.old_status)} → ${escapeHtml(entry.new_status)}</span><small>${escapeHtml(entry.changed_by || 'Sistema')} · ${date(entry.created_at)}</small></li>`).join('') : '<li>Sin cambios registrados.</li>'}</ol></section>`;
   };
 
   const loadDetail = async () => {
     try {
       const order = await api(`/api/backoffice/orders/${root.dataset.orderId}/`);
       feedback.textContent = '';
+      document.querySelector('.bo-heading h1').textContent = order.order_number;
       document.querySelector('#bo-order-detail').innerHTML = renderDetail(order);
     } catch (error) { fail(error); }
   };
@@ -79,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const orders = await api('/api/backoffice/production/');
       feedback.textContent = '';
-      const cards = orders.flatMap((order) => order.items.filter((item) => item.is_customized).map((item) => `<article class="production-card"><header><div><small>${escapeHtml(order.order_number)}</small><h2>${escapeHtml(item.product_name)}</h2></div>${status(order.status)}</header><p>${escapeHtml(item.color)} / ${escapeHtml(item.size)} · Cantidad ${item.quantity}</p><div class="production-previews">${item.customization.preview_front_url ? `<img src="${escapeHtml(item.customization.preview_front_url)}" alt="Frente">` : ''}${item.customization.preview_back_url ? `<img src="${escapeHtml(item.customization.preview_back_url)}" alt="Espalda">` : ''}</div><a class="bo-button" href="/backoffice/orders/${order.id}/">ABRIR PEDIDO</a></article>`));
+      const cards = orders.flatMap((order) => order.items.filter((item) => item.is_customized).map((item) => `<article class="production-card"><header><a href="/backoffice/orders/${order.id}/">${escapeHtml(order.order_number)}</a></header>${previewCard(item)}<h2>${escapeHtml(item.product_name)}</h2><p>${escapeHtml(item.color)} / ${escapeHtml(item.size)} · Cantidad ${item.quantity}</p><div class="bo-state-row"><span>Producción</span>${status(order.status)}</div><div class="bo-state-row"><span>Stock</span>${availabilityBadge(item)}</div>${item.shortage_quantity ? `<p class="bo-demand-note">${item.shortage_quantity === 1 ? "Falta 1 unidad" : `Faltan ${item.shortage_quantity} unidades`}</p>` : ''}<a class="bo-button" href="/backoffice/orders/${order.id}/">VER PEDIDO</a></article>`));
       document.querySelector('#bo-production').innerHTML = cards.length ? cards.join('') : '<div class="bo-empty">No hay prendas personalizadas pendientes de producción.</div>';
     } catch (error) { fail(error); }
   };
@@ -108,6 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (root.dataset.productId) {
         const product = await api(`/api/backoffice/products/${root.dataset.productId}/`);
         document.querySelector('#product-page-title').textContent = product.name;
+        form.elements.garment_type.value = product.garment_type;
         form.elements.name.value = product.name;
         form.elements.description.value = product.description;
         form.elements.price.value = product.price;
@@ -130,19 +159,32 @@ document.addEventListener('DOMContentLoaded', () => {
     active: row.querySelector('[data-field="active"]').checked,
   }));
 
-  const stockRows = (items) => items.length ? `<div class="bo-table-wrap"><table class="bo-table"><thead><tr><th>Producto</th><th>Color</th><th>Talla</th><th>Stock</th><th>Estado</th><th></th></tr></thead><tbody>${items.map((item) => `<tr><td>${escapeHtml(item.product_name)}</td><td>${escapeHtml(item.color)}</td><td>${escapeHtml(item.size)}</td><td><strong>${item.stock}</strong></td><td><span class="stock-state stock-${item.stock_status.toLowerCase()}">${item.stock_status === 'OUT' ? 'Sin stock' : item.stock_status === 'LOW' ? 'Bajo' : 'Normal'}</span></td><td><button class="bo-button" type="button" data-adjust-stock="${item.id}" data-variant-name="${escapeHtml(`${item.product_name} / ${item.color} / ${item.size}`)}">AJUSTAR</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="bo-empty">No hay variantes para mostrar.</div>';
-  const loadStock = async (url = '/api/backoffice/stock/') => {
+  const stockRows = (items) => items.length ? `<div class="bo-table-wrap"><table class="bo-table"><thead><tr><th>Producto / Variante</th><th>Inventario</th><th>Pedidos pendientes</th></tr></thead><tbody>${items.map((item) => `<tr data-stock-variant="${item.id}"><td><strong>${escapeHtml(item.product_name)}</strong><p>${escapeHtml(item.color)} / ${escapeHtml(item.size)}</p></td><td><div class="bo-stock-card"><small>STOCK ACTUAL</small><strong>${item.stock} unidades</strong><span>${item.stock_status === 'OUT' ? 'Sin stock inmediato' : item.stock_status === 'LOW' ? 'Stock bajo' : 'Disponible'}</span></div></td><td><div class="bo-demand-card"><small>PEDIDOS PENDIENTES</small><strong>Faltan ${item.pending_demand} unidades</strong><span>Para cubrir ${item.pending_orders} pedido${item.pending_orders === 1 ? "" : "s"}</span><button class="bo-button" type="button" data-adjust-stock="${item.id}" data-variant-name="${escapeHtml(`${item.product_name} / ${item.color} / ${item.size}`)}" data-stock="${item.stock}" data-pending="${item.pending_demand}">REPONER STOCK</button></div></td></tr>`).join('')}</tbody></table></div>` : '<div class="bo-empty">No hay variantes para mostrar.</div>';
+  const stockParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const stockTargetVariant = stockParams.get('variant');
+  const focusStockTarget = () => {
+    if (!stockTargetVariant) return;
+    const button = document.querySelector(`[data-adjust-stock="${stockTargetVariant}"]`);
+    if (!button) return;
+    const row = button.closest('tr');
+    if (row) { row.classList.add('is-target'); row.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    button.focus({preventScroll:true});
+  };
+  let stockUrl = stockTargetVariant ? `/api/backoffice/stock/?variant=${encodeURIComponent(stockTargetVariant)}` : '/api/backoffice/stock/';
+  const loadStock = async (url = stockUrl) => {
+    stockUrl = url;
     try {
       const data = await api(url);
       feedback.textContent = `${data.count} variante${data.count === 1 ? '' : 's'}`;
       document.querySelector('#bo-stock').innerHTML = stockRows(data.results);
       document.querySelector('#bo-pagination').innerHTML = `${data.previous ? `<button data-stock-page="${escapeHtml(data.previous)}">← Anterior</button>` : ''}${data.next ? `<button data-stock-page="${escapeHtml(data.next)}">Siguiente →</button>` : ''}`;
+      focusStockTarget();
     } catch (error) { fail(error); }
   };
   const loadStockHistory = async () => {
     try {
       const data = await api('/api/backoffice/stock/history/?page_size=20');
-      document.querySelector('#stock-history').innerHTML = data.results.length ? `<div class="bo-table-wrap"><table class="bo-table"><thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cambio</th><th>Motivo</th><th>Usuario</th></tr></thead><tbody>${data.results.map((movement) => `<tr><td>${date(movement.created_at)}</td><td>${escapeHtml(movement.product_name)}<small>${escapeHtml(movement.color)} / ${escapeHtml(movement.size)}</small></td><td>${escapeHtml(movement.movement_type)}</td><td>${movement.previous_stock} → ${movement.new_stock}</td><td>${escapeHtml(movement.reason)}</td><td>${escapeHtml(movement.performed_by)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="bo-empty">Todavía no hay movimientos.</div>';
+      document.querySelector('#stock-history').innerHTML = data.results.length ? `<div class="bo-table-wrap"><table class="bo-table"><thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cambio</th><th>Motivo</th><th>Usuario</th></tr></thead><tbody>${data.results.map((movement) => `<tr><td>${date(movement.created_at)}</td><td>${escapeHtml(movement.product_name)}<small>${escapeHtml(movement.color)} / ${escapeHtml(movement.size)}</small></td><td>${escapeHtml(movement.movement_type)}</td><td>${movement.previous_stock} → ${movement.new_stock}</td><td>${escapeHtml(movement.reason)}${movement.order ? `<br><a href="/backoffice/orders/${movement.order}/">Ver pedido</a>` : ""}</td><td>${escapeHtml(movement.performed_by)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="bo-empty">Todavía no hay movimientos.</div>';
     } catch (error) { fail(error); }
   };
 
@@ -159,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const customer = await api(`/api/backoffice/customers/${root.dataset.customerId}/`);
       feedback.textContent = '';
-      document.querySelector('#bo-customer-detail').innerHTML = `<section class="bo-summary-grid customer-summary"><article class="bo-panel"><small>CLIENTE</small><h2>${escapeHtml(`${customer.first_name} ${customer.last_name}`.trim() || customer.username)}</h2><p>${escapeHtml(customer.email)}</p></article><article class="bo-panel"><small>ESTADO</small><h2>${customer.is_active ? 'Activo' : 'Inactivo'}</h2><p>Desde ${date(customer.date_joined)}</p></article><article class="bo-panel"><small>PEDIDOS</small><h2>${customer.order_count}</h2><p>Último: ${customer.last_order_at ? date(customer.last_order_at) : '—'}</p></article><article class="bo-panel"><small>TOTAL COMPRADO</small><h2>${money(customer.total_spent)}</h2><p>Excluye pedidos cancelados</p></article></section><section class="bo-panel"><h2>Historial de pedidos</h2>${customer.orders.length ? `<div class="bo-table-wrap"><table class="bo-table"><thead><tr><th>Pedido</th><th>Fecha</th><th>Items</th><th>Total</th><th>Estado</th></tr></thead><tbody>${customer.orders.map((order) => `<tr><td><a href="/backoffice/orders/${order.id}/">${escapeHtml(order.order_number)}</a></td><td>${date(order.created_at)}</td><td>${order.item_count}</td><td>${money(order.total)}</td><td>${status(order.status)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="bo-empty">Este cliente todavía no tiene pedidos.</div>'}</section>`;
+      document.querySelector('#bo-customer-detail').innerHTML = `<section class="bo-summary-grid customer-summary"><article class="bo-panel"><small>CLIENTE</small><h2>${escapeHtml(`${customer.first_name} ${customer.last_name}`.trim() || customer.username)}</h2><p>${escapeHtml(customer.email)}</p></article><article class="bo-panel"><small>ESTADO</small><h2>${customer.is_active ? 'Activo' : 'Inactivo'}</h2><p>Desde ${date(customer.date_joined)}</p></article><article class="bo-panel"><small>PEDIDOS</small><h2>${customer.order_count}</h2><p>Último: ${customer.last_order_at ? date(customer.last_order_at) : '—'}</p></article><article class="bo-panel"><small>TOTAL COMPRADO</small><h2>${money(customer.total_spent)}</h2><p>Excluye pedidos cancelados</p></article></section><section class="bo-panel"><h2>Historial de pedidos</h2>${customer.orders.length ? `<div class="bo-table-wrap"><table class="bo-table"><thead><tr><th>Pedido</th><th>Fecha</th><th>Items</th><th>Total</th><th>Estado</th></tr></thead><tbody>${customer.orders.map((order) => `<tr><td><a href="/backoffice/orders/${order.id}/">${escapeHtml(order.order_number)}</a><small>${escapeHtml(order.description)}</small></td><td>${date(order.created_at)}</td><td>${order.item_count}</td><td>${money(order.total)}</td><td>${status(order.status)}${availabilityBadge(order)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="bo-empty">Este cliente todavía no tiene pedidos.</div>'}</section>`;
     } catch (error) { fail(error); }
   };
 
@@ -204,16 +246,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (event.target.id === 'stock-adjust-form') {
       event.preventDefault();
+      if (event.submitter?.value === 'cancel') { document.querySelector('#stock-dialog').close(); return; }
       const payload = Object.fromEntries(new FormData(event.target));
       const variantId = payload.variant_id; delete payload.variant_id;
       payload.quantity = Number(payload.quantity);
+      const saveButton = event.target.querySelector(".bo-primary");
+      saveButton.disabled = true;
       try {
         await api(`/api/backoffice/stock/${variantId}/adjust/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         document.querySelector('#stock-dialog').close();
         feedback.textContent = 'Stock actualizado y movimiento registrado.';
         feedback.classList.remove('is-error');
-        loadStock(); loadStockHistory();
+        if (root.dataset.backofficeView === "detail") await loadDetail(); else { await Promise.all([loadStock(stockUrl), loadStockHistory()]); }
       } catch (error) { fail(error); }
+      finally { saveButton.disabled = false; }
     }
   });
   document.addEventListener('click', async (event) => {
@@ -251,6 +297,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const dialog = document.querySelector('#stock-dialog');
       dialog.querySelector('[name="variant_id"]').value = adjust.dataset.adjustStock;
       document.querySelector('#stock-dialog-title').textContent = adjust.dataset.variantName;
+      const meta = dialog.querySelector('#stock-dialog-meta');
+      if (meta) {
+        meta.hidden = !adjust.dataset.stock && !adjust.dataset.pending;
+        meta.textContent = adjust.dataset.stock !== undefined
+          ? `Stock actual: ${adjust.dataset.stock} · Faltante pendiente: ${Number(adjust.dataset.pending || 0)} u.`
+          : '';
+      }
       dialog.showModal();
     }
     if (event.target.closest('#refresh-history')) loadStockHistory();

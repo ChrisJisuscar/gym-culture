@@ -68,6 +68,23 @@ class Order(models.Model):
     def __str__(self):
         return f"{self.order_number} - {self.user}"
 
+    @property
+    def description(self):
+        items = list(self.items.all())
+        if len(items) == 1:
+            item = items[0]
+            name = item.product_name
+            if item.customization_snapshot:
+                name += " personalizada"
+            return " · ".join(part for part in (name, item.color, item.size) if part)
+        return f"{sum(item.quantity for item in items)} artículos"
+
+    @property
+    def availability(self):
+        if self.status == self.Status.CANCELLED:
+            return "CANCELLED"
+        return "AWAITING_STOCK" if any(item.shortage_quantity for item in self.items.all()) else "AVAILABLE"
+
     def recalculate_total(self):
         total = sum((item.subtotal for item in self.items.all()), Decimal("0.00"))
         self.subtotal = total
@@ -96,11 +113,25 @@ class OrderItem(models.Model):
     )
     product_name = models.CharField(max_length=150, default="")
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    allocated_quantity = models.PositiveIntegerField(default=0)
     unit_price = models.DecimalField(max_digits=12, decimal_places=2)
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, editable=False)
     size = models.CharField(max_length=10)
     color = models.CharField(max_length=50)
     customization_snapshot = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.CheckConstraint(condition=models.Q(allocated_quantity__lte=models.F("quantity")), name="order_item_allocation_lte_quantity")]
+
+    @property
+    def shortage_quantity(self):
+        return self.quantity - self.allocated_quantity
+
+    @property
+    def availability(self):
+        if self.order.status == Order.Status.CANCELLED:
+            return "CANCELLED"
+        return "AWAITING_STOCK" if self.shortage_quantity else "AVAILABLE"
 
     def __str__(self):
         return f"{self.product_name} x {self.quantity}"

@@ -10,6 +10,36 @@ ADMIN_STOCK_MOVEMENT_TYPES = {
     StockMovement.Type.SET,
 }
 
+SIZE_ALIASES = {
+    "XS": "XS", "S": "S", "M": "M", "L": "L", "XL": "XL",
+    "2XL": "2XL", "XXL": "2XL", "3XL": "3XL", "XXXL": "3XL", "4XL": "4XL",
+}
+
+
+def garment_color_hex(color):
+    from PIL import ImageColor
+    known = {"Negro": "#111015", "Blanco": "#ebe9e4", "Gris": "#7a7780", "Azul": "#244a8f", "Rojo": "#9f233d", "Verde": "#276749"}
+    canonical = normalize_color(color)
+    if canonical in known:
+        return known[canonical]
+    try:
+        return "#%02x%02x%02x" % ImageColor.getrgb(color)
+    except (ValueError, TypeError):
+        return "#777777"
+
+
+def normalize_color(value):
+    """Normalizá el nombre de un color a la forma de catálogo (p. ej. 'GRIS ' -> 'Gris')."""
+    key = " ".join(str(value or "").strip().lower().split())
+    aliases = {"black": "Negro", "white": "Blanco", "gray": "Gris", "grey": "Gris", "blue": "Azul", "red": "Rojo", "green": "Verde"}
+    return aliases.get(key, key.title()) or "Sin color"
+
+
+def normalize_size(value):
+    """Normalizá una talla respetando la grilla canónica S/M/L/XL/2XL y sus alias."""
+    key = str(value or "").strip().upper()
+    return SIZE_ALIASES.get(key, key)
+
 
 @transaction.atomic
 def adjust_stock(*, variant, movement_type, quantity, reason, performed_by):
@@ -40,4 +70,31 @@ def adjust_stock(*, variant, movement_type, quantity, reason, performed_by):
         reason=reason,
         performed_by=performed_by,
     )
+    if new_stock > previous_stock:
+        from orders.services import allocate_variant_stock
+        allocate_variant_stock(variant=variant, performed_by=performed_by)
     return movement
+
+
+def stock_queryset():
+    from django.db.models import Count, F, IntegerField, OuterRef, Subquery, Sum
+    from django.db.models.functions import Coalesce
+    from orders.models import Order, OrderItem
+    pending = OrderItem.objects.filter(
+        variant=OuterRef("pk"), allocated_quantity__lt=F("quantity"),
+        order__status__in=[Order.Status.PENDING, Order.Status.CONFIRMED],
+    ).order_by().values("variant")
+    demand = pending.annotate(total=Sum(F("quantity") - F("allocated_quantity"))).values("total")
+    count = pending.annotate(total=Count("order", distinct=True)).values("total")
+    return ProductVariant.objects.select_related("product").annotate(
+        pending_demand=Coalesce(Subquery(demand, output_field=IntegerField()), 0),
+        pending_orders=Coalesce(Subquery(count, output_field=IntegerField()), 0),
+    ).order_by("product__name", "color", "size")
+
+
+def main_product_image(product, request=None):
+    images = list(product.images.all())
+    for image in sorted(images, key=lambda item: not item.is_main):
+        if image.image and image.image.storage.exists(image.image.name):
+            return request.build_absolute_uri(image.image.url) if request else image.image.url
+    return None

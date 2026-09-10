@@ -1,6 +1,7 @@
 import * as THREE from '/static/vendor/three/three.module.min.js';
-import { DecalGeometry } from '/static/vendor/three/geometries/DecalGeometry.js';
+import { projectDecal } from './decal-projector.js';
 import { createTextTexture } from './text-texture.js';
+import { BackgroundRemovalService } from './background-removal-service.js';
 
 export const DESIGN_LIMITS = {
   maxFileBytes: 10 * 1024 * 1024,
@@ -56,11 +57,15 @@ export class DesignManager {
     this.resources = new Map();
     this.selectedId = null;
     this.pending = null;
+    this.resourceVersion = 0;
     this.orientationHelper = new THREE.Object3D();
+    this.processing = null;
   }
 
   async prepareImage(file) {
+    const version = this.resourceVersion;
     const loaded = await readImage(file);
+    if (version !== this.resourceVersion) throw new Error('La prenda cambió mientras se leía la imagen. Volvé a subirla.');
     const texture = new THREE.Texture(loaded.image);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.needsUpdate = true;
@@ -92,6 +97,7 @@ export class DesignManager {
       position: vectorData(hit.point),
       normal: vectorData(hit.normal),
       rotation: 0,
+      projectionVersion: 2,
       scale: 1,
       aspectRatio: this.pending.aspectRatio,
       width: this.pending.aspectRatio >= 1 ? base : base * this.pending.aspectRatio,
@@ -111,6 +117,10 @@ export class DesignManager {
     const position = toVector(design.position);
     this.orientationHelper.position.copy(position);
     this.orientationHelper.lookAt(position.clone().add(toVector(design.normal)));
+    if (design.projectionVersion === 2) {
+      const rotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), THREE.MathUtils.degToRad(design.rotation));
+      return new THREE.Euler().setFromQuaternion(this.orientationHelper.quaternion.clone().multiply(rotation));
+    }
     const orientation = this.orientationHelper.rotation.clone();
     orientation.z += THREE.MathUtils.degToRad(design.rotation);
     return orientation;
@@ -120,8 +130,7 @@ export class DesignManager {
     const resource = this.resources.get(design.id);
     if (!resource) return;
     const targetMesh = sourceMesh || resource.sourceMesh;
-    const size = new THREE.Vector3(design.width * design.scale, design.height * design.scale, this.garmentSize.z * 0.35);
-    const geometry = new DecalGeometry(targetMesh, toVector(design.position), this.orientationFor(design), size);
+    const geometry = projectDecal(targetMesh, toVector(design.position), this.orientationFor(design), design.width * design.scale, design.height * design.scale, this.garmentSize);
     if (!geometry.attributes.position?.count) {
       geometry.dispose();
       throw new Error('Esa zona no admite un diseño con el tamaño actual.');
@@ -130,12 +139,14 @@ export class DesignManager {
       const material = new THREE.MeshBasicMaterial({
         map: resource.texture,
         transparent: true,
+        alphaTest: .01,
+        toneMapped: false,
         depthTest: true,
         depthWrite: false,
         polygonOffset: true,
         polygonOffsetFactor: -4,
         polygonOffsetUnits: -4,
-        side: THREE.DoubleSide,
+        side: THREE.FrontSide,
       });
       resource.mesh = new THREE.Mesh(geometry, material);
       resource.mesh.userData.designId = design.id;
@@ -146,6 +157,8 @@ export class DesignManager {
       resource.mesh.geometry = geometry;
     }
     resource.sourceMesh = targetMesh;
+    design.surface = targetMesh.name;
+    resource.mesh.visible = targetMesh.visible;
   }
 
   select(id) {
@@ -157,6 +170,39 @@ export class DesignManager {
   }
 
   selected() { return this.designs.find((design) => design.id === this.selectedId) || null; }
+
+  async removeBackground() {
+    const design = this.selected();
+    if (!design || design.type !== 'image' || this.processing) return;
+    const resource = this.resources.get(design.id);
+    const version = this.resourceVersion;
+    const operation = {};
+    this.processing = operation;
+    try {
+      const source = await new BackgroundRemovalService().remove(design.source?.dataUrl || design.assetUrl);
+      const texture = await loadTexture(source.dataUrl);
+      if (version !== this.resourceVersion || this.resources.get(design.id) !== resource) {
+        texture.dispose();
+        return;
+      }
+      if (!design.originalSource && !design.originalAssetId) {
+        if (design.source) design.originalSource = { ...design.source };
+        else Object.assign(design, { originalAssetId: design.assetId, originalAssetUrl: design.assetUrl });
+      }
+      design.source = source;
+      design.backgroundRemoved = true;
+      delete design.assetId;
+      delete design.assetUrl;
+      const previous = resource.texture;
+      resource.texture = texture;
+      resource.mesh.material.map = texture;
+      resource.mesh.material.needsUpdate = true;
+      previous.dispose();
+      this.notify();
+    } finally {
+      if (this.processing === operation) this.processing = null;
+    }
+  }
   meshes() { return [...this.resources.values()].map((resource) => resource.mesh).filter(Boolean); }
 
   moveSelected(hit) {
@@ -209,6 +255,7 @@ export class DesignManager {
   }
 
   clearResources({ clearState = true } = {}) {
+    this.resourceVersion += 1;
     this.clearPending();
     this.resources.forEach((resource) => {
       this.scene.remove(resource.mesh);
@@ -222,20 +269,37 @@ export class DesignManager {
     this.notify();
   }
 
-  async restoreAll(sourceMesh) {
+  async restoreAll(sourceMeshes) {
+    const meshes = Array.isArray(sourceMeshes) ? sourceMeshes : [sourceMeshes];
     this.clearResources({ clearState: false });
+    const version = this.resourceVersion;
+    const failed = [];
     for (const design of this.designs) {
       let texture;
-      if (design.type === 'text') {
-        texture = createTextTexture(design).texture;
-      } else {
-        if (!design.assetUrl) throw new Error('La configuración contiene una imagen sin URL.');
-        texture = await loadTexture(design.assetUrl);
+      try {
+        if (design.type === 'text') {
+          texture = createTextTexture(design).texture;
+        } else {
+          if (!design.assetUrl) throw new Error('La configuración contiene una imagen sin URL.');
+          texture = await loadTexture(design.assetUrl);
+        }
+        if (version !== this.resourceVersion) {
+          texture.dispose();
+          throw new Error('La restauración de diseños fue cancelada.');
+        }
+        const sourceMesh = meshes.find((mesh) => mesh.name === design.surface) || meshes[0];
+        this.resources.set(design.id, { texture, mesh: null, sourceMesh });
+        this.rebuild(design, sourceMesh);
+      } catch (error) {
+        texture?.dispose();
+        this.resources.delete(design.id);
+        if (version !== this.resourceVersion) throw error;
+        failed.push(design);
+        console.warn('[GYM CULTURE 3D] No se pudo restaurar un diseño.', error);
       }
-      this.resources.set(design.id, { texture, mesh: null, sourceMesh });
-      this.rebuild(design, sourceMesh);
     }
     this.select(null);
+    return failed;
   }
 
   dispose() {

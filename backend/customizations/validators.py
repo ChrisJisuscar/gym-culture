@@ -3,6 +3,7 @@ import math
 import re
 
 from PIL import Image, UnidentifiedImageError
+from products.services import normalize_color, normalize_size
 from rest_framework import serializers
 
 from .constants import (
@@ -64,9 +65,13 @@ def validate_configuration(value, variant, available_asset_ids=None, allow_asset
     if len(json.dumps(value, separators=(",", ":")).encode("utf-8")) > MAX_CONFIGURATION_SIZE:
         raise serializers.ValidationError({"configuration": "La configuración supera el tamaño permitido."})
     garment = value.get("garment")
-    if not isinstance(garment, dict) or garment.get("type") != "tshirt":
+    if not isinstance(garment, dict) or garment.get("type") not in ("tshirt", "oversized", "hoodie"):
         raise serializers.ValidationError({"configuration": "La prenda no es válida."})
-    if garment.get("variantId") != variant.id or garment.get("size") != variant.size or str(garment.get("color", "")).lower() != variant.color.lower():
+    if garment["type"] == "hoodie" and garment.get("hoodState", "down") not in ("down", "up"):
+        raise serializers.ValidationError({"configuration": "Estado de capucha invalido."})
+    if garment["type"] != variant.product.garment_type or garment.get("productId", variant.product_id) != variant.product_id:
+        raise serializers.ValidationError({"configuration": "La prenda no coincide con el producto."})
+    if garment.get("variantId") != variant.id or normalize_size(garment.get("size")) != normalize_size(variant.size) or normalize_color(garment.get("color", "")) != normalize_color(variant.color):
         raise serializers.ValidationError({"configuration": "La configuración no coincide con la variante."})
     if not HEX_COLOR.fullmatch(str(garment.get("colorHex", ""))):
         raise serializers.ValidationError({"configuration": "El color de la prenda no es válido."})
@@ -79,7 +84,7 @@ def validate_configuration(value, variant, available_asset_ids=None, allow_asset
     for design in designs:
         if not isinstance(design, dict) or design.get("type") not in {"image", "text"}:
             raise serializers.ValidationError({"configuration": "Cada elemento debe ser imagen o texto."})
-        if "source" in design or "dataUrl" in design or any(
+        if "source" in design or "originalSource" in design or "dataUrl" in design or any(
             isinstance(item, str) and item.strip().lower().startswith("data:")
             for item in design.values()
         ):
@@ -99,6 +104,16 @@ def validate_configuration(value, variant, available_asset_ids=None, allow_asset
                 raise serializers.ValidationError({"configuration": "Fuente o color de texto inválido."})
             _number(design.get("fontSize"), 32, 1024, "fontSize")
         else:
+            original_id = design.get("originalAssetId")
+            original_key = design.get("originalAssetKey")
+            if original_id is not None and str(original_id) not in available_asset_ids:
+                raise serializers.ValidationError({"configuration": "El original no pertenece a esta personalización."})
+            if original_key is not None:
+                if not allow_asset_keys or not ID_VALUE.fullmatch(str(original_key)):
+                    raise serializers.ValidationError({"configuration": "Referencia al original inválida."})
+                asset_keys.add(str(original_key))
+            if design.get("backgroundRemoved") and original_id is None and original_key is None:
+                raise serializers.ValidationError({"configuration": "La imagen procesada debe conservar su original."})
             asset_id = design.get("assetId")
             asset_key = design.get("assetKey")
             if asset_id is not None and str(asset_id) not in available_asset_ids:

@@ -113,10 +113,6 @@ def create_order_from_cart(*, user, checkout_data):
         related_product_ids = {item.product_id for item in items if item.variant_id == variant_id}
         if related_product_ids != {variant.product_id}:
             raise serializers.ValidationError({"cart": "Una variante no pertenece al producto indicado."})
-        if requested > variant.stock:
-            raise serializers.ValidationError(
-                {"cart": f"Stock insuficiente para {variant.product.name} {variant.size}/{variant.color}. Disponible: {variant.stock}."}
-            )
 
     subtotal = sum((locked_products[item.product_id].price * item.quantity for item in items), Decimal("0.00"))
     shipping_cost = Decimal("0.00")
@@ -178,6 +174,7 @@ def create_order_from_cart(*, user, checkout_data):
                 customization=customization,
                 product_name=product.name,
                 quantity=item.quantity,
+                allocated_quantity=item.quantity if variant is None else 0,
                 unit_price=product.price,
                 subtotal=product.price * item.quantity,
                 size=variant.size if variant else "",
@@ -187,19 +184,8 @@ def create_order_from_cart(*, user, checkout_data):
         )
 
     OrderItem.objects.bulk_create(order_items)
-    for variant_id, requested in requested_by_variant.items():
-        variant = locked_variants[variant_id]
-        variant.stock -= requested
-        variant.save(update_fields=["stock"])
-        StockMovement.objects.create(
-            variant=variant,
-            movement_type=StockMovement.Type.ORDER,
-            quantity=requested,
-            previous_stock=variant.stock + requested,
-            new_stock=variant.stock,
-            reason=f"Pedido {order.order_number}",
-            performed_by=user,
-        )
+    for variant in locked_variants.values():
+        allocate_variant_stock(variant=variant, performed_by=user)
     for customization in customizations_to_freeze:
         customization.state = Customization.State.ORDERED
         customization.frozen_at = timezone.now()
@@ -210,24 +196,31 @@ def create_order_from_cart(*, user, checkout_data):
 
 @transaction.atomic
 def transition_order_status(*, order, new_status, changed_by):
-    order = Order.objects.select_for_update().get(pk=order.pk)
+    order = Order.objects.select_for_update(no_key=True).get(pk=order.pk)
     if new_status not in ALLOWED_STATUS_TRANSITIONS[order.status]:
         raise serializers.ValidationError(
             {"status": f"No se puede cambiar de {order.status} a {new_status}."}
         )
 
+    if new_status in {Order.Status.PREPARING, Order.Status.SHIPPED} and order.availability == "AWAITING_STOCK":
+        raise serializers.ValidationError({"status": "Esperando reposicion de stock."})
+
     old_status = order.status
     if new_status == Order.Status.CANCELLED and order.stock_released_at is None:
         quantities = defaultdict(int)
         for item in order.items.exclude(variant_id=None):
-            quantities[item.variant_id] += item.quantity
+            quantities[item.variant_id] = 0
         variants = {
             variant.id: variant
             for variant in ProductVariant.objects.select_for_update()
             .filter(id__in=sorted(quantities))
             .order_by("id")
         }
+        for item in order.items.exclude(variant_id=None):
+            quantities[item.variant_id] += item.allocated_quantity
         for variant_id, quantity in quantities.items():
+            if not quantity:
+                continue
             variant = variants[variant_id]
             previous_stock = variant.stock
             variant.stock += quantity
@@ -238,6 +231,7 @@ def transition_order_status(*, order, new_status, changed_by):
                 quantity=quantity,
                 previous_stock=previous_stock,
                 new_stock=variant.stock,
+                order=order,
                 reason=f"Cancelación de {order.order_number}",
                 performed_by=changed_by,
             )
@@ -255,3 +249,37 @@ def transition_order_status(*, order, new_status, changed_by):
         changed_by=changed_by,
     )
     return order
+
+
+@transaction.atomic
+def allocate_variant_stock(*, variant, performed_by):
+    """Allocate physical units FIFO; never change payment or production status.
+
+    Lock the variant before reading pending items. Cancellation also reads allocated
+    quantities after taking this lock, so it restores exactly what was consumed.
+    """
+    from django.db.models import F
+    variant = ProductVariant.objects.select_for_update().get(pk=variant.pk)
+    if not variant.active or not variant.product.active or not variant.stock:
+        return 0
+    items = OrderItem.objects.select_for_update(of=("self",)).filter(
+        variant=variant, allocated_quantity__lt=F("quantity"),
+        order__status__in=[Order.Status.PENDING, Order.Status.CONFIRMED],
+    ).select_related("order").order_by("order__created_at", "order_id", "id")
+    allocated = 0
+    for item in items:
+        amount = min(item.shortage_quantity, variant.stock)
+        if not amount:
+            break
+        previous = variant.stock
+        variant.stock -= amount
+        variant.save(update_fields=["stock"])
+        item.allocated_quantity += amount
+        item.save(update_fields=["allocated_quantity"])
+        StockMovement.objects.create(
+            variant=variant, order=item.order, movement_type=StockMovement.Type.ORDER,
+            quantity=amount, previous_stock=previous, new_stock=variant.stock,
+            reason=f"Asignacion al pedido {item.order.order_number}", performed_by=performed_by,
+        )
+        allocated += amount
+    return allocated

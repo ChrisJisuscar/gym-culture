@@ -6,6 +6,7 @@
   <form id="bo-filters" class="bo-filters">
     <input name="search" placeholder="Número, cliente o email">
     <select name="status"><option value="">Todos los estados</option><option>PENDING</option><option>CONFIRMED</option><option>PREPARING</option><option>SHIPPED</option><option>DELIVERED</option><option>CANCELLED</option></select>
+    <select name="availability"><option value="">Todos</option><option value="AVAILABLE">Disponibles</option><option value="AWAITING_STOCK">Pendientes de stock</option></select>
     <input name="date_from" type="date" aria-label="Desde">
     <input name="date_to" type="date" aria-label="Hasta">
     <button class="bo-button" type="submit">FILTRAR</button>

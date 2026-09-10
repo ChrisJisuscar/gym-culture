@@ -24,7 +24,7 @@ from .serializers import (
     StockMovementSerializer,
     StockVariantSerializer,
 )
-from .services import adjust_stock
+from .services import adjust_stock, stock_queryset
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -71,7 +71,7 @@ def product_queryset():
 
 
 def prepared_product_data(data):
-    prepared = {key: data.get(key) for key in ("name", "description", "price", "category", "active") if key in data}
+    prepared = {key: data.get(key) for key in ("name", "description", "price", "category", "active", "garment_type") if key in data}
     variants = data.get("variants")
     if isinstance(variants, str):
         try:
@@ -195,7 +195,13 @@ class BackofficeStockAPI(APIView):
     pagination_class = BackofficePagination
 
     def get(self, request):
-        queryset = ProductVariant.objects.select_related("product").order_by("product__name", "color", "size")
+        queryset = stock_queryset()
+        variant_id = request.query_params.get("variant")
+        if variant_id:
+            try:
+                queryset = queryset.filter(pk=int(variant_id))
+            except ValueError:
+                raise serializers.ValidationError({"variant": "Variante invalida."})
         search = request.query_params.get("search", "").strip()
         if search:
             queryset = queryset.filter(Q(product__name__icontains=search) | Q(color__icontains=search) | Q(size__icontains=search))
@@ -217,7 +223,9 @@ class BackofficeStockAdjustAPI(APIView):
         serializer = StockAdjustmentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         movement = adjust_stock(variant=variant, performed_by=request.user, **serializer.validated_data)
-        return Response(StockMovementSerializer(movement).data)
+        data = StockMovementSerializer(movement).data
+        data["updated_variant"] = StockVariantSerializer(stock_queryset().get(pk=variant.pk)).data
+        return Response(data)
 
 
 class BackofficeStockHistoryAPI(APIView):

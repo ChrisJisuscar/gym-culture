@@ -1,3 +1,5 @@
+from django.db import transaction
+
 from rest_framework import status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -37,7 +39,13 @@ class CartItemViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED,
         )
 
+    def update(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
+
+    @transaction.atomic
     def partial_update(self, request, *args, **kwargs):
+        cart, _ = Cart.objects.get_or_create(user=request.user)
+        Cart.objects.select_for_update().get(pk=cart.pk)
         item = self.get_object()
         if "customization_data" in request.data:
             payload = {
@@ -74,11 +82,8 @@ class CartItemViewSet(viewsets.ModelViewSet):
                 {"quantity": ["La cantidad debe ser mayor que 0."]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if item.variant and quantity > item.variant.stock:
-            return Response(
-                {"quantity": f"Stock insuficiente. Disponible: {item.variant.stock}"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        if not item.product.active or (item.variant and not item.variant.active):
+            return Response({"detail": "Producto o variante no disponible."}, status=400)
         item.quantity = quantity
         item.save(update_fields=["quantity", "updated_at"])
         return Response(CartItemSerializer(item, context={"request": request}).data)

@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <button type="button" data-qty-change="increment" data-item-id="${item.id}">+</button>
               </div>
             </div>
-            <div class="cart-prices"><span>${formatMoney(item.product_price)} c/u</span><strong>${formatMoney(Number(item.product_price) * Number(item.quantity))}</strong>${item.is_customized ? `<div class="cart-item-actions"><a class="cart-edit" href="${editHref}">Editar personalización</a>${previewBack ? `<button class="cart-edit" type="button" data-preview-toggle="${item.id}">Ver espalda</button>` : ''}</div>` : ''}</div>
+            ${item.availability === "AWAITING_STOCK" ? '<p class="stock-warning">PENDIENTE DE STOCK. Puedes realizar el pedido igualmente.</p>' : ""}<div class="cart-prices"><span>${formatMoney(item.product_price)} c/u</span><strong>${formatMoney(Number(item.product_price) * Number(item.quantity))}</strong>${item.is_customized ? `<div class="cart-item-actions"><a class="cart-edit" href="${editHref}">Editar personalización</a>${previewBack ? `<button class="cart-edit" type="button" data-preview-toggle="${item.id}">Ver espalda</button>` : ''}</div>` : ''}</div>
           </div>
         </div>
       </article>

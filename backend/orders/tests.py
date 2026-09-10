@@ -166,14 +166,16 @@ class CheckoutAndBackofficeTests(APITestCase):
         self.assertEqual(item.product_name, "Remera Histórica")
         self.assertEqual(item.unit_price, Decimal("125000.00"))
 
-    def test_insufficient_stock_rolls_back_and_preserves_cart(self):
+    def test_insufficient_stock_creates_shortage(self):
         self.add_normal_item(quantity=6)
         response = self.post_checkout()
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(Order.objects.count(), 0)
-        self.assertEqual(CartItem.objects.count(), 1)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(Order.objects.count(), 1)
+        self.assertEqual(CartItem.objects.count(), 0)
         self.variant.refresh_from_db()
-        self.assertEqual(self.variant.stock, 5)
+        self.assertEqual(self.variant.stock, 0)
+        item = OrderItem.objects.get()
+        self.assertEqual((item.allocated_quantity, item.shortage_quantity), (5, 1))
 
     def test_unexpected_item_creation_error_rolls_back_everything(self):
         self.add_normal_item(quantity=2)
@@ -307,3 +309,38 @@ class CheckoutAndBackofficeTests(APITestCase):
         download = self.client.get(download_url)
         self.assertEqual(download.status_code, status.HTTP_200_OK)
         self.assertIn("attachment", download["Content-Disposition"])
+
+
+class OversizedCheckoutTests(CheckoutAndBackofficeTests):
+    def setUp(self):
+        super().setUp()
+        self.product.garment_type = "oversized"
+        self.product.save()
+
+    def add_custom_item(self):
+        customization, asset = super().add_custom_item()
+        customization.configuration["garment"].update(type="oversized", productId=self.product.pk)
+        customization.save()
+        return customization, asset
+
+    def test_mixed_cart_snapshots_and_cancellation_once(self):
+        from rest_framework.exceptions import ValidationError
+        from .services import transition_order_status
+        customization, asset = self.add_custom_item()
+        cart = Cart.objects.get(user=self.user)
+        CartItem.objects.create(cart=cart, product=self.other_product, variant=self.other_variant, quantity=2)
+        response = self.post_checkout()
+        self.assertEqual(response.status_code, 201, response.data)
+        order = Order.objects.get()
+        self.assertEqual(order.items.count(), 2)
+        item = order.items.get(product=self.product)
+        self.assertEqual(item.customization_snapshot["configuration"]["garment"]["type"], "oversized")
+        self.assertEqual(item.customization_snapshot["assets"][0]["file"], asset.file.name)
+        self.variant.refresh_from_db()
+        self.assertEqual(self.variant.stock, 4)
+        transition_order_status(order=order, new_status="CANCELLED", changed_by=self.admin)
+        with self.assertRaises(ValidationError):
+            transition_order_status(order=order, new_status="CANCELLED", changed_by=self.admin)
+        self.variant.refresh_from_db()
+        self.assertEqual(self.variant.stock, 5)
+        self.assertEqual(StockMovement.objects.filter(variant=self.variant, movement_type="CANCELLATION").count(), 1)

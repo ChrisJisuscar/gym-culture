@@ -2,7 +2,7 @@ import logging
 from datetime import date
 
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, Q, F
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, status, viewsets
@@ -17,7 +17,7 @@ from users.permissions import IsAdminRole
 from payments.serializers import PaymentSerializer
 from payments.services import PaymentService
 
-from .models import Order
+from .models import Order, OrderItem
 from .serializers import (
     AdminOrderSerializer,
     BackofficeOrderListSerializer,
@@ -32,7 +32,8 @@ logger = logging.getLogger(__name__)
 
 def order_detail_queryset():
     return Order.objects.select_related("user").prefetch_related(
-        "items__product",
+        "items__product__images",
+        "items__product__images",
         "items__variant",
         "items__customization",
         "payments",
@@ -120,7 +121,7 @@ class BackofficeDashboardAPI(APIView):
 
     def get(self, request):
         counts = dict(Order.objects.values_list("status").annotate(total=Count("id")))
-        recent = Order.objects.select_related("user").annotate(item_count=Count("items"))[:8]
+        recent = Order.objects.select_related("user").prefetch_related("items").annotate(item_count=Count("items"))[:8]
         return Response({
             "counts": {
                 "pending": counts.get(Order.Status.PENDING, 0),
@@ -137,12 +138,18 @@ class BackofficeOrdersAPI(APIView):
     pagination_class = BackofficePagination
 
     def get(self, request):
-        queryset = Order.objects.select_related("user").annotate(item_count=Count("items")).order_by("-created_at")
+        queryset = Order.objects.select_related("user").prefetch_related("items").annotate(item_count=Count("items")).order_by("-created_at")
         status_filter = request.query_params.get("status", "").upper()
         if status_filter:
             if status_filter not in Order.Status.values:
                 return Response({"status": "Estado inválido."}, status=status.HTTP_400_BAD_REQUEST)
             queryset = queryset.filter(status=status_filter)
+        availability = request.query_params.get("availability")
+        shortages = OrderItem.objects.filter(allocated_quantity__lt=F("quantity")).values("order_id")
+        if availability == "AWAITING_STOCK":
+            queryset = queryset.filter(pk__in=shortages).exclude(status=Order.Status.CANCELLED)
+        elif availability == "AVAILABLE":
+            queryset = queryset.exclude(pk__in=shortages).exclude(status=Order.Status.CANCELLED)
         search = request.query_params.get("search", "").strip()
         if search:
             queryset = queryset.filter(

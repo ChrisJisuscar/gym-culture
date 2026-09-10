@@ -1,18 +1,34 @@
 from rest_framework import serializers
 
 from .models import Category, Product, ProductImage, ProductVariant, StockMovement
+from .services import normalize_color, normalize_size
 
 
 class CategorySerializer(serializers.ModelSerializer):
+    def validate_name(self, value):
+        name = " ".join(value.split())
+        duplicates = Category.objects.filter(name__iexact=name)
+        if self.instance:
+            duplicates = duplicates.exclude(pk=self.instance.pk)
+        if duplicates.exists():
+            raise serializers.ValidationError("Ya existe esta categoria.")
+        return name
+
     class Meta:
         model = Category
         fields = ["id", "name", "description", "active"]
 
 
 class ProductVariantSerializer(serializers.ModelSerializer):
+    color_hex = serializers.SerializerMethodField()
+
+    def get_color_hex(self, obj):
+        from .services import garment_color_hex
+        return obj.color_hex or garment_color_hex(obj.color)
+
     class Meta:
         model = ProductVariant
-        fields = ["id", "size", "color", "stock", "active"]
+        fields = ["id", "size", "color", "color_hex", "stock", "active"]
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -31,6 +47,7 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "name",
+            "garment_type",
             "description",
             "price",
             "category",
@@ -53,18 +70,14 @@ class AdminProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = [
-            "id", "name", "description", "price", "category", "active",
+            "id", "name", "description", "price", "category", "active", "garment_type",
             "main_image", "variant_count", "total_stock", "variants", "images",
             "created_at", "updated_at",
         ]
 
     def get_main_image(self, obj):
-        image = next((item for item in obj.images.all() if item.is_main), None)
-        image = image or next(iter(obj.images.all()), None)
-        if not image:
-            return None
-        request = self.context.get("request")
-        return request.build_absolute_uri(image.image.url) if request else image.image.url
+        from .services import main_product_image
+        return main_product_image(obj, self.context.get("request"))
 
 
 class AdminProductWriteSerializer(serializers.ModelSerializer):
@@ -73,7 +86,7 @@ class AdminProductWriteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ["name", "description", "price", "category", "active", "variants"]
+        fields = ["name", "description", "price", "category", "active", "garment_type", "variants"]
 
     def validate_price(self, value):
         if value < 0:
@@ -88,8 +101,8 @@ class AdminProductWriteSerializer(serializers.ModelSerializer):
         for variant in variants:
             try:
                 variant_id = int(variant["id"]) if variant.get("id") not in (None, "") else None
-                size = str(variant["size"]).strip()
-                color = str(variant["color"]).strip()
+                size = normalize_size(variant["size"])
+                color = normalize_color(variant["color"])
                 stock = int(variant.get("stock", 0))
             except (KeyError, TypeError, ValueError) as exc:
                 raise serializers.ValidationError("Cada variante necesita talla, color y stock válidos.") from exc
@@ -100,6 +113,12 @@ class AdminProductWriteSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("No se puede repetir la misma talla y color.")
             seen.add(key)
             normalized.append({"id": variant_id, "size": size, "color": color, "stock": stock, "active": bool(variant.get("active", True))})
+            if "color_hex" in variant:
+                field = ProductVariant._meta.get_field("color_hex")
+                try:
+                    normalized[-1]["color_hex"] = field.clean(variant["color_hex"], None)
+                except Exception as exc:
+                    raise serializers.ValidationError("Usá un color hexadecimal válido.") from exc
         return normalized
 
     def create(self, validated_data):
@@ -145,7 +164,7 @@ class AdminProductWriteSerializer(serializers.ModelSerializer):
                     requested_stock = data.pop("stock")
                     for field, value in data.items():
                         setattr(variant, field, value)
-                    variant.save()
+                    variant.save(update_fields=list(data))
                     if requested_stock != variant.stock:
                         adjust_stock(
                             variant=variant, movement_type=StockMovement.Type.SET,
@@ -158,10 +177,12 @@ class AdminProductWriteSerializer(serializers.ModelSerializer):
 class StockVariantSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
     stock_status = serializers.SerializerMethodField()
+    pending_demand = serializers.SerializerMethodField()
+    pending_orders = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
         model = ProductVariant
-        fields = ["id", "product", "product_name", "color", "size", "stock", "active", "stock_status"]
+        fields = ["id", "product", "product_name", "color", "size", "stock", "active", "stock_status", "pending_demand", "pending_orders"]
 
     def get_stock_status(self, obj):
         from .constants import LOW_STOCK_THRESHOLD
@@ -171,6 +192,9 @@ class StockVariantSerializer(serializers.ModelSerializer):
         if obj.stock <= LOW_STOCK_THRESHOLD:
             return "LOW"
         return "NORMAL"
+
+    def get_pending_demand(self, obj):
+        return getattr(obj, "pending_demand", 0)
 
 
 class StockAdjustmentSerializer(serializers.Serializer):
@@ -195,4 +219,4 @@ class StockMovementSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = StockMovement
-        fields = ["id", "variant", "product_name", "size", "color", "movement_type", "quantity", "previous_stock", "new_stock", "reason", "performed_by", "created_at"]
+        fields = ["id", "variant", "order", "product_name", "size", "color", "movement_type", "quantity", "previous_stock", "new_stock", "reason", "performed_by", "created_at"]

@@ -1,0 +1,161 @@
+{
+  "source": "frontend/static/models/Low_Hoodie.fbx",
+  "sha256": "185c5b8f86af8ff7fabace656e5009c3be7693dfc797ca679e39de5edb14560c",
+  "conversion": "Three.js r160 FBXLoader / GLTFExporter",
+  "originalBox": {
+    "isBox3": true,
+    "min": {
+      "x": -588.4226684570312,
+      "y": 912.2088623046875,
+      "z": -196.0294647216797
+    },
+    "max": {
+      "x": 588.8701171875,
+      "y": 1898.6500244140625,
+      "z": 138.61570739746094
+    }
+  },
+  "scale": 0.001013745206923068,
+  "orientation": "Y up, front +Z; no rotation",
+  "meshes": [
+    {
+      "name": "Base",
+      "vertices": 39492,
+      "triangles": 13164,
+      "attributes": [
+        "position",
+        "normal",
+        "uv"
+      ],
+      "uvBox": {
+        "isBox2": true,
+        "min": {
+          "x": 0.014298999682068825,
+          "y": 0.02656400017440319
+        },
+        "max": {
+          "x": 0.9902600049972534,
+          "y": 0.9734780192375183
+        }
+      },
+      "materials": [
+        {
+          "name": "standardSurface2",
+          "color": [
+            1,
+            1,
+            1
+          ],
+          "maps": []
+        }
+      ],
+      "groups": []
+    },
+    {
+      "name": "Hood_on",
+      "vertices": 6084,
+      "triangles": 2028,
+      "attributes": [
+        "position",
+        "normal",
+        "uv"
+      ],
+      "uvBox": {
+        "isBox2": true,
+        "min": {
+          "x": 0.7625430226325989,
+          "y": 0.026854999363422394
+        },
+        "max": {
+          "x": 0.9796980023384094,
+          "y": 0.8367769718170166
+        }
+      },
+      "materials": [
+        {
+          "name": "standardSurface2",
+          "color": [
+            1,
+            1,
+            1
+          ],
+          "maps": []
+        }
+      ],
+      "groups": []
+    },
+    {
+      "name": "Hood_off",
+      "vertices": 6084,
+      "triangles": 2028,
+      "attributes": [
+        "position",
+        "normal",
+        "uv"
+      ],
+      "uvBox": {
+        "isBox2": true,
+        "min": {
+          "x": 0.7625309824943542,
+          "y": 0.026871999725699425
+        },
+        "max": {
+          "x": 0.9797099828720093,
+          "y": 0.8367869853973389
+        }
+      },
+      "materials": [
+        {
+          "name": "standardSurface2",
+          "color": [
+            1,
+            1,
+            1
+          ],
+          "maps": []
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "finalBox": {
+    "isBox3": true,
+    "min": {
+      "x": -0.5967374592961252,
+      "y": -0.5000000000000001,
+      "z": -0.16962246962786195
+    },
+    "max": {
+      "x": 0.5967374592961252,
+      "y": 0.5,
+      "z": 0.16962246962786195
+    }
+  },
+  "validation": {
+    "numErrors": 0,
+    "numWarnings": 0,
+    "numInfos": 3,
+    "numHints": 0,
+    "messages": [
+      {
+        "code": "UNUSED_OBJECT",
+        "message": "This object may be unused.",
+        "severity": 2,
+        "pointer": "/meshes/0/primitives/0/attributes/TEXCOORD_0"
+      },
+      {
+        "code": "UNUSED_OBJECT",
+        "message": "This object may be unused.",
+        "severity": 2,
+        "pointer": "/meshes/1/primitives/0/attributes/TEXCOORD_0"
+      },
+      {
+        "code": "UNUSED_OBJECT",
+        "message": "This object may be unused.",
+        "severity": 2,
+        "pointer": "/meshes/2/primitives/0/attributes/TEXCOORD_0"
+      }
+    ],
+    "truncated": false
+  }
+}

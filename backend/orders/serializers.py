@@ -32,14 +32,16 @@ class CheckoutSerializer(serializers.Serializer):
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
+    available_stock = serializers.IntegerField(source="variant.stock", read_only=True, default=0)
     is_customized = serializers.SerializerMethodField()
     customization = serializers.SerializerMethodField()
+    product_image = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
         fields = [
             "id", "product", "product_name", "variant", "size", "color",
-            "quantity", "unit_price", "subtotal", "is_customized", "customization",
+            "quantity", "allocated_quantity", "shortage_quantity", "availability", "available_stock", "unit_price", "subtotal", "is_customized", "customization", "product_image",
         ]
         read_only_fields = fields
 
@@ -49,6 +51,10 @@ class OrderItemSerializer(serializers.ModelSerializer):
         url = default_storage.url(path)
         request = self.context.get("request")
         return request.build_absolute_uri(url) if request else url
+
+    def get_product_image(self, obj):
+        from products.services import main_product_image
+        return main_product_image(obj.product, self.context.get("request"))
 
     def get_is_customized(self, obj):
         return bool(obj.customization_snapshot)
@@ -67,6 +73,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "preview_back_url": self._media_url(snapshot.get("previewBack")),
             "designs": designs,
             "asset_count": len(snapshot.get("assets", [])),
+            "garment": configuration.get("garment"),
         }
 
 
@@ -82,6 +89,8 @@ class OrderListSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "order_number",
+            "description",
+            "availability",
             "created_at",
             "status",
             "status_display",
@@ -101,7 +110,7 @@ class BackofficeOrderListSerializer(OrderListSerializer):
         fields = OrderListSerializer.Meta.fields + ["customer_name", "customer_email"]
 
     def get_customer_name(self, obj):
-        return f"{obj.contact_first_name} {obj.contact_last_name}".strip() or obj.user.username
+        return f"{obj.contact_first_name} {obj.contact_last_name}".strip() or obj.contact_email
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -115,7 +124,7 @@ class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = [
-            "id", "order_number", "status", "status_display", "payment_status",
+            "id", "order_number", "description", "availability", "status", "status_display", "payment_status",
             "payment_status_display", "delivery_method", "subtotal", "shipping_cost",
             "total", "created_at", "updated_at", "shipping", "item_count", "items",
             "payments",
@@ -177,7 +186,10 @@ class AdminOrderSerializer(OrderSerializer):
     def get_allowed_transitions(self, obj):
         from .services import ALLOWED_STATUS_TRANSITIONS
 
-        return sorted(ALLOWED_STATUS_TRANSITIONS[obj.status])
+        transitions = ALLOWED_STATUS_TRANSITIONS[obj.status]
+        if obj.availability == "AWAITING_STOCK":
+            transitions = transitions - {Order.Status.PREPARING, Order.Status.SHIPPED}
+        return sorted(transitions)
 
 
 class OrderStatusUpdateSerializer(serializers.Serializer):

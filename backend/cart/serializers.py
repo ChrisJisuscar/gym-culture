@@ -181,6 +181,18 @@ def _persist_customization_images(value):
 
 
 class CartItemSerializer(serializers.ModelSerializer):
+    availability = serializers.SerializerMethodField()
+
+    def get_availability(self, obj):
+        totals = self.context.setdefault("cart_variant_quantities", {})
+        if obj.cart_id not in totals:
+            quantities = {}
+            for variant_id, quantity in obj.cart.items.values_list("variant_id", "quantity"):
+                quantities[variant_id] = quantities.get(variant_id, 0) + quantity
+            totals[obj.cart_id] = quantities
+        requested = totals[obj.cart_id].get(obj.variant_id, obj.quantity)
+        return "AWAITING_STOCK" if obj.variant and requested > obj.variant.stock else "AVAILABLE"
+
     product_name = serializers.CharField(source="product.name", read_only=True)
     product_price = serializers.DecimalField(
         source="product.price", read_only=True, max_digits=12, decimal_places=2
@@ -216,6 +228,7 @@ class CartItemSerializer(serializers.ModelSerializer):
             "variant_size",
             "variant_color",
             "variant_stock",
+            "availability",
             "quantity",
             "customization_data",
             "customization",
@@ -317,10 +330,6 @@ class AddCartItemSerializer(serializers.Serializer):
                 raise serializers.ValidationError(
                     {"variant": "La variante no pertenece al producto indicado."}
                 )
-            if attrs["quantity"] > variant.stock:
-                raise serializers.ValidationError(
-                    {"quantity": f"Stock insuficiente. Disponible: {variant.stock}"}
-                )
         elif product.variants.exists():
             raise serializers.ValidationError(
                 {
@@ -351,11 +360,13 @@ class AddCartItemSerializer(serializers.Serializer):
     def save(self, **kwargs):
         cart, _ = Cart.objects.get_or_create(user=self.context["request"].user)
         cart = Cart.objects.select_for_update().get(pk=cart.pk)
-        product = Product.objects.get(pk=self.validated_data["product"])
+        product = Product.objects.select_for_update().get(pk=self.validated_data["product"])
         variant_id = self.validated_data.get("variant")
         variant = (
-            ProductVariant.objects.filter(pk=variant_id).first() if variant_id else None
+            ProductVariant.objects.select_for_update().filter(pk=variant_id).first() if variant_id else None
         )
+        if not product.active or (variant and (not variant.active or variant.product_id != product.pk)):
+            raise serializers.ValidationError({"variant": "Producto o variante no disponible."})
         customization = self.validated_data.get("customization_data")
         if customization is not None:
             customization = _persist_customization_images(customization)
@@ -391,7 +402,7 @@ class AddCartItemSerializer(serializers.Serializer):
         )
         item = None
         if customization is None:
-            item = candidates.filter(customization_data__isnull=True).first()
+            item = candidates.filter(customization_data__isnull=True, customization__isnull=True).first()
         else:
             target = canonical_customization(customization)
             for candidate in candidates.exclude(customization_data__isnull=True):
@@ -408,10 +419,6 @@ class AddCartItemSerializer(serializers.Serializer):
             )
         else:
             item.quantity += self.validated_data["quantity"]
-            if variant and item.quantity > variant.stock:
-                raise serializers.ValidationError(
-                    {"quantity": f"Stock insuficiente. Disponible: {variant.stock}"}
-                )
         if front_preview is not None:
             item.preview_front.save(front_preview.name, front_preview, save=False)
         if back_preview is not None:
