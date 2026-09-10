@@ -32,6 +32,8 @@ class CheckoutSerializer(serializers.Serializer):
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source="display_product_name", read_only=True)
+    product_name_snapshot = serializers.CharField(source="product_name", read_only=True)
     available_stock = serializers.IntegerField(source="variant.stock", read_only=True, default=0)
     is_customized = serializers.SerializerMethodField()
     customization = serializers.SerializerMethodField()
@@ -40,7 +42,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
         fields = [
-            "id", "product", "product_name", "variant", "size", "color",
+            "id", "product", "product_name", "product_name_snapshot", "variant", "size", "color",
             "quantity", "allocated_quantity", "shortage_quantity", "availability", "available_stock", "unit_price", "subtotal", "is_customized", "customization", "product_image",
         ]
         read_only_fields = fields
@@ -107,7 +109,7 @@ class BackofficeOrderListSerializer(OrderListSerializer):
     customer_email = serializers.EmailField(source="contact_email", read_only=True)
 
     class Meta(OrderListSerializer.Meta):
-        fields = OrderListSerializer.Meta.fields + ["customer_name", "customer_email"]
+        fields = OrderListSerializer.Meta.fields + ["customer_name", "customer_email", "is_archived", "archived_at", "archived_by"]
 
     def get_customer_name(self, obj):
         return f"{obj.contact_first_name} {obj.contact_last_name}".strip() or obj.contact_email
@@ -163,7 +165,7 @@ class AdminOrderSerializer(OrderSerializer):
     allowed_transitions = serializers.SerializerMethodField()
 
     class Meta(OrderSerializer.Meta):
-        fields = OrderSerializer.Meta.fields + ["customer", "status_history", "allowed_transitions"]
+        fields = OrderSerializer.Meta.fields + ["customer", "status_history", "allowed_transitions", "is_archived", "archived_at", "archived_by"]
 
     def get_customer(self, obj):
         return {
@@ -184,6 +186,8 @@ class AdminOrderSerializer(OrderSerializer):
         }
 
     def get_allowed_transitions(self, obj):
+        if obj.is_archived:
+            return []
         from .services import ALLOWED_STATUS_TRANSITIONS
 
         transitions = ALLOWED_STATUS_TRANSITIONS[obj.status]

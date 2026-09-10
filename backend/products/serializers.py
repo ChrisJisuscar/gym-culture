@@ -175,6 +175,7 @@ class AdminProductWriteSerializer(serializers.ModelSerializer):
 
 
 class StockVariantSerializer(serializers.ModelSerializer):
+    garment_type = serializers.CharField(source="product.garment_type", read_only=True)
     product_name = serializers.CharField(source="product.name", read_only=True)
     stock_status = serializers.SerializerMethodField()
     pending_demand = serializers.SerializerMethodField()
@@ -182,7 +183,7 @@ class StockVariantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductVariant
-        fields = ["id", "product", "product_name", "color", "size", "stock", "active", "stock_status", "pending_demand", "pending_orders"]
+        fields = ["id", "product", "product_name", "garment_type", "color", "size", "stock", "active", "stock_status", "pending_demand", "pending_orders"]
 
     def get_stock_status(self, obj):
         from .constants import LOW_STOCK_THRESHOLD
@@ -198,8 +199,8 @@ class StockVariantSerializer(serializers.ModelSerializer):
 
 
 class StockAdjustmentSerializer(serializers.Serializer):
-    movement_type = serializers.ChoiceField(choices=["RESTOCK", "REMOVE", "SET"])
-    quantity = serializers.IntegerField(min_value=0)
+    movement_type = serializers.ChoiceField(choices=["RESTOCK", "REMOVE"])
+    quantity = serializers.IntegerField(min_value=1)
     reason = serializers.CharField(max_length=255)
 
     def validate(self, attrs):

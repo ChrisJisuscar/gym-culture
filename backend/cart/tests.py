@@ -215,6 +215,15 @@ class CartApiTests(TestCase):
             "preview_back": self.preview_data,
         }
 
+    def test_legacy_design_cannot_use_another_garment_product(self):
+        self.client.force_authenticate(user=self.user_a)
+        payload = self.customized_payload()
+        payload["customization_data"]["garment"] = "hoodie"
+        response = self.client.post("/api/cart/items/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("customization_data", response.data)
+        self.assertFalse(CartItem.objects.filter(cart__user=self.user_a).exists())
+
     def test_customized_item_saves_snapshot_and_previews(self):
         self.client.force_authenticate(user=self.user_a)
         response = self.client.post(

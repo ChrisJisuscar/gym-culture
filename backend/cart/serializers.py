@@ -339,6 +339,8 @@ class AddCartItemSerializer(serializers.Serializer):
         customization = attrs.get("customization_data")
         if customization is not None:
             _validate_customization_structure(customization)
+            if customization["garment"] != product.garment_type:
+                raise serializers.ValidationError({"customization_data": "La prenda no coincide con el producto real."})
             if variant_id is None:
                 raise serializers.ValidationError(
                     {

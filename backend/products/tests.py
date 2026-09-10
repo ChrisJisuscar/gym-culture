@@ -131,18 +131,20 @@ class BackofficeProductAndStockTests(APITestCase):
         self.assertEqual([item["id"] for item in low.data["results"]], [self.low.id])
         self.assertIn(self.out.id, [item["id"] for item in out.data["results"]])
 
-    def test_restock_remove_set_and_history(self):
+    def test_restock_remove_and_history(self):
         self.authenticate_admin()
         url = f"/api/backoffice/stock/{self.normal.id}/adjust/"
-        for movement_type, quantity, expected in (("RESTOCK", 5, 15), ("REMOVE", 4, 11), ("SET", 2, 2)):
+        for movement_type, quantity, expected in (("RESTOCK", 5, 15), ("REMOVE", 4, 11)):
             response = self.client.post(url, {"movement_type": movement_type, "quantity": quantity, "reason": "Conteo manual"}, format="json")
             self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
             self.normal.refresh_from_db()
             self.assertEqual(self.normal.stock, expected)
-        self.assertEqual(StockMovement.objects.filter(variant=self.normal).count(), 3)
+        self.assertEqual(StockMovement.objects.filter(variant=self.normal).count(), 2)
         self.assertFalse(StockMovement.objects.exclude(performed_by=self.admin).exists())
         history = self.client.get(f"/api/backoffice/stock/history/?variant={self.normal.id}")
-        self.assertEqual(history.data["count"], 3)
+        self.assertEqual(history.data["count"], 2)
+        rejected = self.client.post(url, {"movement_type": "SET", "quantity": 2, "reason": "Conteo"}, format="json")
+        self.assertEqual(rejected.status_code, 400)
 
     def test_remove_rejects_negative_result_without_movement(self):
         self.authenticate_admin()

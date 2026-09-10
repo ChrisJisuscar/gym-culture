@@ -190,9 +190,13 @@ class BackofficeCategoriesAPI(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
+class StockPagination(BackofficePagination):
+    page_size = 100
+
+
 class BackofficeStockAPI(APIView):
     permission_classes = [IsAdminRole]
-    pagination_class = BackofficePagination
+    pagination_class = StockPagination
 
     def get(self, request):
         queryset = stock_queryset()
@@ -206,10 +210,19 @@ class BackofficeStockAPI(APIView):
         if search:
             queryset = queryset.filter(Q(product__name__icontains=search) | Q(color__icontains=search) | Q(size__icontains=search))
         stock_filter = request.query_params.get("stock")
+        garment = request.query_params.get("garment_type")
+        if garment:
+            if garment not in Product.GarmentType.values:
+                raise serializers.ValidationError({"garment_type": "Prenda inválida."})
+            queryset = queryset.filter(product__garment_type=garment)
         if stock_filter == "low":
             queryset = queryset.filter(stock__gt=0, stock__lte=LOW_STOCK_THRESHOLD)
         elif stock_filter == "out":
             queryset = queryset.filter(stock=0)
+        elif stock_filter == "in":
+            queryset = queryset.filter(stock__gt=0)
+        elif stock_filter == "pending":
+            queryset = queryset.filter(pending_demand__gt=0)
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(queryset, request, view=self)
         return paginator.get_paginated_response(StockVariantSerializer(page, many=True).data)

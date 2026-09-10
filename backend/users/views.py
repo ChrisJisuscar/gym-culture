@@ -1,6 +1,7 @@
 from django.db.models import Count, DecimalField, Max, Q, Sum, Value
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
+from django.db import transaction
 from rest_framework import generics, status, viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -56,7 +57,7 @@ class CustomerPagination(PageNumberPagination):
 
 
 def customer_queryset():
-    return User.objects.filter(role=User.Role.CUSTOMER).annotate(
+    return User.objects.filter(role=User.Role.CUSTOMER, is_staff=False, is_superuser=False).annotate(
         order_count=Count("orders", distinct=True),
         total_spent=Coalesce(
             Sum("orders__total", filter=~Q(orders__status="CANCELLED")),
@@ -71,7 +72,7 @@ class BackofficeCustomersAPI(APIView):
     permission_classes = [IsAdminRole]
 
     def get(self, request):
-        queryset = customer_queryset().order_by("-date_joined")
+        queryset = customer_queryset().filter(is_active=request.query_params.get("active", "true") != "false").order_by("-date_joined")
         search = request.query_params.get("search", "").strip()
         if search:
             queryset = queryset.filter(
@@ -87,6 +88,16 @@ class BackofficeCustomersAPI(APIView):
 
 class BackofficeCustomerDetailAPI(APIView):
     permission_classes = [IsAdminRole]
+
+    @transaction.atomic
+    def patch(self, request, pk):
+        value = request.data.get("is_active")
+        if type(value) is not bool:
+            return Response({"is_active": "Indicá true o false."}, status=400)
+        customer = get_object_or_404(User.objects.select_for_update().filter(role=User.Role.CUSTOMER, is_staff=False, is_superuser=False), pk=pk)
+        customer.is_active = value
+        customer.save(update_fields=["is_active"])
+        return Response({"id": customer.pk, "is_active": customer.is_active})
 
     def get(self, request, pk):
         customer = get_object_or_404(customer_queryset(), pk=pk)

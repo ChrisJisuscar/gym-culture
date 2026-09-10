@@ -5,6 +5,7 @@ from django.db import transaction
 from django.db.models import Count, Q, F
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
@@ -34,7 +35,7 @@ def order_detail_queryset():
     return Order.objects.select_related("user").prefetch_related(
         "items__product__images",
         "items__product__images",
-        "items__variant",
+        "items__variant__product",
         "items__customization",
         "payments",
         "status_history__changed_by",
@@ -120,17 +121,11 @@ class BackofficeDashboardAPI(APIView):
     permission_classes = [IsAdminRole]
 
     def get(self, request):
-        counts = dict(Order.objects.values_list("status").annotate(total=Count("id")))
-        recent = Order.objects.select_related("user").prefetch_related("items").annotate(item_count=Count("items"))[:8]
-        return Response({
-            "counts": {
-                "pending": counts.get(Order.Status.PENDING, 0),
-                "confirmed": counts.get(Order.Status.CONFIRMED, 0),
-                "preparing": counts.get(Order.Status.PREPARING, 0),
-                "shipped": counts.get(Order.Status.SHIPPED, 0),
-            },
-            "recent_orders": BackofficeOrderListSerializer(recent, many=True).data,
-        })
+        from .dashboard import dashboard_data
+        period = request.query_params.get("period", "30")
+        if period not in {"7", "30", "90", "12m"}:
+            return Response({"period": "Período inválido."}, status=400)
+        return Response(dashboard_data(period))
 
 
 class BackofficeOrdersAPI(APIView):
@@ -138,7 +133,7 @@ class BackofficeOrdersAPI(APIView):
     pagination_class = BackofficePagination
 
     def get(self, request):
-        queryset = Order.objects.select_related("user").prefetch_related("items").annotate(item_count=Count("items")).order_by("-created_at")
+        queryset = Order.objects.filter(is_archived=request.query_params.get("archived") == "true").select_related("user").prefetch_related("items__product", "items__variant__product").annotate(item_count=Count("items")).order_by("-created_at")
         status_filter = request.query_params.get("status", "").upper()
         if status_filter:
             if status_filter not in Order.Status.values:
@@ -176,6 +171,20 @@ class BackofficeOrdersAPI(APIView):
 
 class BackofficeOrderDetailAPI(APIView):
     permission_classes = [IsAdminRole]
+
+    @transaction.atomic
+    def patch(self, request, pk):
+        # Archive changes visibility only: payments, reservations and snapshots survive.
+        value = request.data.get("is_archived")
+        if type(value) is not bool:
+            return Response({"is_archived": "Indicá true o false."}, status=400)
+        order = get_object_or_404(Order.objects.select_for_update(), pk=pk)
+        if order.is_archived != value:
+            order.is_archived = value
+            order.archived_at = timezone.now() if value else None
+            order.archived_by = request.user if value else None
+            order.save(update_fields=["is_archived", "archived_at", "archived_by", "updated_at"])
+        return Response({"id": order.pk, "is_archived": order.is_archived})
 
     def get(self, request, pk):
         order = get_object_or_404(order_detail_queryset(), pk=pk)
@@ -215,6 +224,7 @@ class BackofficeProductionAPI(APIView):
 
     def get(self, request):
         orders = order_detail_queryset().filter(
+            is_archived=False,
             status__in=[Order.Status.PENDING, Order.Status.CONFIRMED, Order.Status.PREPARING],
             items__customization_snapshot__isnull=False,
         ).distinct()

@@ -4,26 +4,57 @@ document.addEventListener('DOMContentLoaded', () => {
   const auth = window.GymCultureAuth;
   const feedback = document.querySelector('#bo-feedback');
   const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
-  const money = (value) => `G ${new Intl.NumberFormat('es-PY', { maximumFractionDigits: 0 }).format(Number(value || 0))}`;
+  const money = (value) => `₲ ${new Intl.NumberFormat('es-PY', { maximumFractionDigits: 0 }).format(Number(value || 0))}`;
   const date = (value) => new Intl.DateTimeFormat('es-PY', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
   const states = {
     PENDING: ['Pendiente','pending'], CONFIRMED: ['Confirmado','confirmed'],
-    PREPARING: ['Preparando','preparing'], SHIPPED: ['Enviado','shipped'],
+    PREPARING: ['En producción','preparing'], SHIPPED: ['Enviado','shipped'],
     DELIVERED: ['Entregado','delivered'], CANCELLED: ['Cancelado','cancelled'],
     AVAILABLE: ['Disponible','available'], AWAITING_STOCK: ['Pendiente de stock','awaiting-stock'],
   };
   const labels = Object.fromEntries(Object.entries(states).map(([key,value]) => [key,value[0]]));
   const navSection = { detail: 'orders', 'product-detail': 'products', 'customer-detail': 'customers' }[root.dataset.backofficeView] || root.dataset.backofficeView;
   document.querySelector(`[data-nav-section="${navSection}"]`)?.classList.add('is-active');
+  const polishTables = () => {
+    document.querySelectorAll('.bo-table').forEach(table => {
+      [...table.querySelectorAll('thead th')].forEach((header, index) => {
+        header.scope = 'col';
+        if (/^(items|total|precio|variantes|stock total|pedidos|monto)$/i.test(header.textContent.trim())) {
+          header.classList.add('bo-number');
+          table.querySelectorAll(`tbody td:nth-child(${index + 1})`).forEach(cell => cell.classList.add('bo-number'));
+        }
+      });
+    });
+  };
+  new MutationObserver(polishTables).observe(root, {childList:true, subtree:true});
+  const filterLabels = {search:'Buscar',status:'Estado del pedido',availability:'Disponibilidad',category:'Categoría',active:'Estado',archived:'Archivo'};
+  document.querySelectorAll('.bo-filters input,.bo-filters select').forEach(control => {
+    if (!control.labels?.length && !control.hasAttribute('aria-label')) control.setAttribute('aria-label',filterLabels[control.name] || control.placeholder || control.name);
+  });
   const api = async (url, options = {}) => {
+    const path = new URL(url, window.location.origin).pathname;
+    const targetId = {'/api/backoffice/orders/':'bo-orders','/api/backoffice/products/':'bo-products','/api/backoffice/customers/':'bo-customers','/api/backoffice/stock/':'bo-stock','/api/backoffice/stock/history/':'stock-history','/api/backoffice/production/':'bo-production'}[path];
+    const target = !options.method && targetId ? document.getElementById(targetId) : null;
+    if (target) {
+      target.setAttribute('aria-busy','true');
+      if (!target.children.length) target.innerHTML = '<div class="bo-loading-placeholder" aria-hidden="true"><i></i><i></i><i></i></div>';
+    }
+    const finish = failed => {
+      if (!target) return;
+      target.setAttribute('aria-busy','false');
+      if (failed && target.querySelector('.bo-loading-placeholder')) target.innerHTML = '<div class="bo-empty">No se pudo cargar la información. Intentá nuevamente.</div>';
+    };
     let response;
     try {
       response = await auth.request(url, options);
     } catch (error) {
+      finish(true);
       if (auth.isSessionError?.(error)) throw error;
       throw new Error('No se pudo conectar con el servidor. Intentá nuevamente.');
     }
     const data = await response.json().catch(() => ({}));
+    finish(!response.ok);
+    if (response.ok) feedback.classList.remove('is-error');
     if (!response.ok) {
       const error = new Error(response.status >= 500 ? 'No pudimos completar la operacion. Intenta de nuevo.' : response.status === 403 ? 'No tenés permisos para acceder al backoffice.' : (data.detail || Object.values(data).flat(Infinity).join(' ') || 'No se pudo cargar la información.'));
       error.status = response.status;
@@ -43,15 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('#bo-filters select[name="status"] option').forEach(option => { if (labels[option.value]) option.textContent = labels[option.value]; });
   const rows = (orders) => orders.length ? `<div class="bo-table-wrap"><table class="bo-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Fecha</th><th>Items</th><th>Total</th><th>Estado</th></tr></thead><tbody>${orders.map((order) => `<tr><td><a href="/backoffice/orders/${order.id}/">${escapeHtml(order.order_number)}</a><small>${escapeHtml(order.description)}</small></td><td>${escapeHtml(order.customer_name || '—')}<small>${escapeHtml(order.customer_email || '')}</small></td><td>${date(order.created_at)}</td><td>${order.item_count}</td><td>${money(order.total)}</td><td>${status(order.status)}${availabilityBadge(order)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="bo-empty">No hay pedidos para mostrar.</div>';
 
-  const loadDashboard = async () => {
-    try {
-      const data = await api('/api/backoffice/dashboard/');
-      feedback.textContent = '';
-      document.querySelector('#bo-metrics').innerHTML = [['Pendientes', data.counts.pending], ['Confirmados', data.counts.confirmed], ['En preparación', data.counts.preparing], ['Enviados', data.counts.shipped]].map(([label, value]) => `<article><span>${escapeHtml(label)}</span><strong>${value}</strong></article>`).join('');
-      document.querySelector('#bo-recent').innerHTML = rows(data.recent_orders);
-    } catch (error) { fail(error); }
-  };
-
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const loadOrders = async (url = '/api/backoffice/orders/') => {
     try {
       const data = await api(url);
@@ -100,6 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
       feedback.textContent = '';
       document.querySelector('.bo-heading h1').textContent = order.order_number;
       document.querySelector('#bo-order-detail').innerHTML = renderDetail(order);
+      document.querySelector('#bo-order-detail').insertAdjacentHTML('afterbegin', `<div class="bo-archive-actions"><button class="bo-button bo-danger" data-archive-order="${!order.is_archived}">${order.is_archived ? 'RESTAURAR PEDIDO' : 'ARCHIVAR PEDIDO'}</button>${order.is_archived ? `<span>Archivado ${date(order.archived_at)}</span>` : ''}</div>`);
     } catch (error) { fail(error); }
   };
 
@@ -167,10 +191,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const button = document.querySelector(`[data-adjust-stock="${stockTargetVariant}"]`);
     if (!button) return;
     const row = button.closest('tr');
-    if (row) { row.classList.add('is-target'); row.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    if (row) { row.classList.add('is-target'); row.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'center' }); }
     button.focus({preventScroll:true});
   };
-  let stockUrl = stockTargetVariant ? `/api/backoffice/stock/?variant=${encodeURIComponent(stockTargetVariant)}` : '/api/backoffice/stock/';
+  let stockUrl = stockTargetVariant ? `/api/backoffice/stock/?variant=${encodeURIComponent(stockTargetVariant)}` : '/api/backoffice/stock/?page_size=100';
   const loadStock = async (url = stockUrl) => {
     stockUrl = url;
     try {
@@ -200,6 +224,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const loadCustomerDetail = async () => {
     try {
       const customer = await api(`/api/backoffice/customers/${root.dataset.customerId}/`);
+      document.querySelector('.bo-heading').querySelector('[data-active-customer]')?.remove();
+      document.querySelector('.bo-heading').insertAdjacentHTML('beforeend', `<button class="bo-button bo-danger" data-active-customer="${!customer.is_active}">${customer.is_active ? 'DESACTIVAR CLIENTE' : 'REACTIVAR CLIENTE'}</button>`);
       feedback.textContent = '';
       document.querySelector('#bo-customer-detail').innerHTML = `<section class="bo-summary-grid customer-summary"><article class="bo-panel"><small>CLIENTE</small><h2>${escapeHtml(`${customer.first_name} ${customer.last_name}`.trim() || customer.username)}</h2><p>${escapeHtml(customer.email)}</p></article><article class="bo-panel"><small>ESTADO</small><h2>${customer.is_active ? 'Activo' : 'Inactivo'}</h2><p>Desde ${date(customer.date_joined)}</p></article><article class="bo-panel"><small>PEDIDOS</small><h2>${customer.order_count}</h2><p>Último: ${customer.last_order_at ? date(customer.last_order_at) : '—'}</p></article><article class="bo-panel"><small>TOTAL COMPRADO</small><h2>${money(customer.total_spent)}</h2><p>Excluye pedidos cancelados</p></article></section><section class="bo-panel"><h2>Historial de pedidos</h2>${customer.orders.length ? `<div class="bo-table-wrap"><table class="bo-table"><thead><tr><th>Pedido</th><th>Fecha</th><th>Items</th><th>Total</th><th>Estado</th></tr></thead><tbody>${customer.orders.map((order) => `<tr><td><a href="/backoffice/orders/${order.id}/">${escapeHtml(order.order_number)}</a><small>${escapeHtml(order.description)}</small></td><td>${date(order.created_at)}</td><td>${order.item_count}</td><td>${money(order.total)}</td><td>${status(order.status)}${availabilityBadge(order)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="bo-empty">Este cliente todavía no tiene pedidos.</div>'}</section>`;
     } catch (error) { fail(error); }
@@ -263,6 +289,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   document.addEventListener('click', async (event) => {
+    const archive = event.target.closest('[data-archive-order], [data-active-customer]');
+    if (archive) {
+      const orderAction = archive.hasAttribute('data-archive-order');
+      const value = (orderAction ? archive.dataset.archiveOrder : archive.dataset.activeCustomer) === 'true';
+      const message = orderAction ? (value ? '¿Archivar este pedido? Se conservan pagos, personalizaciones y reservas de stock. Para liberar reservas, cancelá el pedido antes de archivarlo.' : '¿Restaurar este pedido a la gestión activa?') : (value ? '¿Reactivar el acceso de este cliente?' : '¿Desactivar este cliente? No podrá iniciar sesión. Sus pedidos e historial se conservan.');
+      if (!window.confirm(message)) return;
+      archive.disabled = true;
+      try {
+        await api(orderAction ? `/api/backoffice/orders/${root.dataset.orderId}/` : `/api/backoffice/customers/${root.dataset.customerId}/`, {method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(orderAction ? {is_archived: value} : {is_active: value})});
+        if (orderAction) await loadDetail(); else await loadCustomerDetail();
+      } catch (error) { fail(error); }
+      finally { archive.disabled = false; }
+      return;
+    }
     const page = event.target.closest('[data-page]');
     if (page) loadOrders(page.dataset.page);
     const download = event.target.closest('[data-asset-download]');
@@ -309,7 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (event.target.closest('#refresh-history')) loadStockHistory();
   });
 
-  if (root.dataset.backofficeView === 'dashboard') loadDashboard();
+  if (root.dataset.backofficeView === 'dashboard') window.GymCultureDashboard({api, money, escapeHtml, labels, rows, fail, reducedMotion});
   if (root.dataset.backofficeView === 'orders') loadOrders();
   if (root.dataset.backofficeView === 'detail') loadDetail();
   if (root.dataset.backofficeView === 'production') loadProduction();

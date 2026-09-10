@@ -43,7 +43,7 @@ class AdminCustomerDetailSerializer(AdminCustomerListSerializer):
         from django.db.models import Count
         from orders.serializers import OrderListSerializer
 
-        queryset = obj.orders.prefetch_related("items").annotate(item_count=Count("items")).order_by("-created_at")
+        queryset = obj.orders.prefetch_related("items__product", "items__variant__product").annotate(item_count=Count("items")).order_by("-created_at")
         return OrderListSerializer(queryset, many=True).data
 
 

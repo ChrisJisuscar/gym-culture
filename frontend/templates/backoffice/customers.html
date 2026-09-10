@@ -3,7 +3,7 @@
 {% block view_name %}customers{% endblock %}
 {% block content %}
   <header class="bo-heading"><div><p class="eyebrow">COMUNIDAD</p><h1>Clientes</h1></div></header>
-  <form id="customer-filters" class="bo-filters"><input name="search" placeholder="Nombre, apellido o email"><button class="bo-button" type="submit">BUSCAR</button></form>
+  <form id="customer-filters" class="bo-filters"><input name="search" placeholder="Nombre, apellido o email"><select name="active" aria-label="Estado"><option value="true">Activos</option><option value="false">Archivados / desactivados</option></select><button class="bo-button" type="submit">BUSCAR</button></form>
   <p id="bo-feedback" class="bo-feedback" role="status">Cargando clientes…</p>
   <section class="bo-panel"><div id="bo-customers"></div><nav id="bo-pagination" class="bo-pagination"></nav></section>
 {% endblock %}

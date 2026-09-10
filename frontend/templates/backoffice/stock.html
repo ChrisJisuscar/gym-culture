@@ -7,7 +7,9 @@
     <label class="sr-only" for="stock-search">Buscar en inventario</label>
     <input id="stock-search" name="search" placeholder="Producto, color o talla">
     <label class="sr-only" for="stock-level">Nivel de stock</label>
-    <select id="stock-level" name="stock"><option value="">Todo el stock</option><option value="low">Stock bajo</option><option value="out">Sin stock</option></select>
+    <select id="stock-level" name="stock"><option value="">Todo el stock</option><option value="in">Con stock</option><option value="low">Stock bajo</option><option value="out">Sin stock</option><option value="pending">Con pedidos pendientes</option></select>
+    <select name="garment_type" aria-label="Prenda"><option value="">Todas las prendas</option><option value="tshirt">Remera Clásica</option><option value="oversized">Remera Oversize</option><option value="hoodie">Hoodie</option></select>
+    <input name="page_size" type="hidden" value="100">
     <button class="bo-button" type="submit">FILTRAR</button>
   </form>
   <p id="bo-feedback" class="bo-feedback" role="status" aria-live="polite">Cargando inventario…</p>
@@ -19,8 +21,8 @@
       <p class="eyebrow">AJUSTAR STOCK</p><h2 id="stock-dialog-title">Variante</h2><p>Los ingresos cubren primero los pedidos pendientes por antigüedad. No cambian el pago ni el estado de producción.</p>
       <p id="stock-dialog-meta" class="bo-dialog-meta" role="status" hidden></p>
       <input name="variant_id" type="hidden">
-      <label>Operación<select name="movement_type"><option value="RESTOCK">Agregar</option><option value="REMOVE">Retirar</option><option value="SET">Establecer</option></select></label>
-      <label>Cantidad<input name="quantity" type="number" min="0" required></label>
+      <label>Operación<select name="movement_type"><option value="RESTOCK">Agregar</option><option value="REMOVE">Retirar</option></select></label>
+      <label>Cantidad<input name="quantity" type="number" min="1" required></label>
       <label>Motivo<textarea name="reason" maxlength="255" required></textarea></label>
       <button class="bo-button bo-primary" type="submit">GUARDAR AJUSTE</button>
     </form>

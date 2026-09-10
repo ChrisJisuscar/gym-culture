@@ -157,6 +157,8 @@ def create_order_from_cart(*, user, checkout_data):
             customizations_to_freeze.append(customization)
         elif item.customization_data is not None:
             _validate_customization_structure(item.customization_data)
+            if item.customization_data["garment"] != product.garment_type:
+                raise serializers.ValidationError({"cart": "La prenda personalizada no coincide con el producto real."})
             snapshot = {
                 "version": 1,
                 "legacy": True,
@@ -197,6 +199,8 @@ def create_order_from_cart(*, user, checkout_data):
 @transaction.atomic
 def transition_order_status(*, order, new_status, changed_by):
     order = Order.objects.select_for_update(no_key=True).get(pk=order.pk)
+    if order.is_archived:
+        raise serializers.ValidationError({"status": "Restaurá el pedido antes de cambiar su estado."})
     if new_status not in ALLOWED_STATUS_TRANSITIONS[order.status]:
         raise serializers.ValidationError(
             {"status": f"No se puede cambiar de {order.status} a {new_status}."}

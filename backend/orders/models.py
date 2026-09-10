@@ -55,6 +55,9 @@ class Order(models.Model):
     )
     idempotency_key = models.UUIDField(null=True, blank=True)
     stock_released_at = models.DateTimeField(null=True, blank=True)
+    is_archived = models.BooleanField(default=False, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    archived_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="archived_orders")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -73,7 +76,7 @@ class Order(models.Model):
         items = list(self.items.all())
         if len(items) == 1:
             item = items[0]
-            name = item.product_name
+            name = item.display_product_name
             if item.customization_snapshot:
                 name += " personalizada"
             return " · ".join(part for part in (name, item.color, item.size) if part)
@@ -122,6 +125,10 @@ class OrderItem(models.Model):
 
     class Meta:
         constraints = [models.CheckConstraint(condition=models.Q(allocated_quantity__lte=models.F("quantity")), name="order_item_allocation_lte_quantity")]
+
+    @property
+    def display_product_name(self):
+        return self.variant.product.name if self.variant_id else self.product.name
 
     @property
     def shortage_quantity(self):

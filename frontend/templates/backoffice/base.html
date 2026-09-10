@@ -25,6 +25,7 @@
     {% block content %}{% endblock %}
   </main>
   <script src="{% static 'js/auth-session.js' %}" defer></script>
+  {% block extra_scripts %}{% endblock %}
   <script src="{% static 'js/backoffice.js' %}" defer></script>
 </body>
 </html>
