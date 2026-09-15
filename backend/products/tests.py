@@ -56,6 +56,7 @@ class BackofficeProductAndStockTests(APITestCase):
         self.assertEqual(self.client.post("/api/products/", {"name": "Hack"}, format="json").status_code, status.HTTP_403_FORBIDDEN)
 
     def test_backoffice_pages_exist(self):
+        self.client.force_login(self.admin)
         for url in ("/backoffice/products/", "/backoffice/stock/", "/backoffice/customers/"):
             self.assertEqual(self.client.get(url).status_code, status.HTTP_200_OK)
 

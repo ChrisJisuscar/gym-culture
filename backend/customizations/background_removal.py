@@ -1,52 +1,54 @@
-"""Local subject segmentation; no uploaded image leaves this server."""
+"""Hybrid background-removal service; originals never leave the local backend."""
 import io
-import os
 import threading
-from functools import lru_cache
 
-from django.conf import settings
-from PIL import Image, ImageChops, ImageOps
+from PIL import Image, ImageOps
 
-
-class BackgroundRemovalUnavailable(Exception):
-    pass
-
-
-class BackgroundRemovalBusy(Exception):
-    pass
+from .background_assessment import assess_image
+from .background_errors import BackgroundRemovalBusy, BackgroundRemovalRejected, SAFE_MESSAGE, SegmentationUnavailable
+from .foreground_mask import refine_mask, validate_mask
+from .segmentation import LocalSegmentationEngine
+from .solid_background import SolidBackgroundRemover
 
 
 class BackgroundRemovalService:
-    # Bound CPU and working memory per worker. Requests never queue indefinitely.
     _slot = threading.Lock()
+    max_dimension = 3072
 
-    @staticmethod
-    @lru_cache(maxsize=1)
-    def session():
-        directory = settings.BASE_DIR / "var" / "background-removal"
-        if not (directory / "u2netp.onnx").is_file():
-            raise BackgroundRemovalUnavailable("Run prepare_background_removal before serving requests")
-        os.environ["U2NET_HOME"] = str(directory)
-        os.environ.setdefault("OMP_NUM_THREADS", "2")
-        from rembg import new_session
-        return new_session("u2netp", providers=["CPUExecutionProvider"])
+    def __init__(self, segmentation_engine=None):
+        self.segmentation_engine = segmentation_engine or LocalSegmentationEngine()
+        self.background_confidence = 0
+        self.confidence_level = 'UNSAFE'
+        self.strategy = 'unsafe'
 
     def remove(self, upload):
         if not self._slot.acquire(blocking=False):
             raise BackgroundRemovalBusy()
         try:
-            session = self.session()
-            from rembg import remove
             with Image.open(upload) as source:
-                original = ImageOps.exif_transpose(source).convert("RGBA")
-            # Segmentation runs on a bounded image; keep output dimensions/transforms.
-            working = original.convert("RGB")
-            working.thumbnail((1024, 1024))
-            mask = remove(working, session=session, only_mask=True)
-            mask = mask.convert("L").resize(original.size, Image.Resampling.LANCZOS)
-            original.putalpha(ImageChops.multiply(original.getchannel("A"), mask))
+                compressed = source.format in {'JPEG', 'WEBP'}
+                if source.format == 'JPEG':
+                    source.draft('RGB', (self.max_dimension, self.max_dimension))
+                image = ImageOps.exif_transpose(source).convert('RGBA')
+            if image.getchannel('A').getextrema()[0] < 255:
+                self.strategy = 'transparent'
+                raise BackgroundRemovalRejected('already_transparent', message='Esta imagen ya tiene transparencia. Se conservó sin cambios.')
+            image.thumbnail((self.max_dimension, self.max_dimension), Image.Resampling.LANCZOS)
+            solid = SolidBackgroundRemover()
+            assessment = assess_image(image, solid, compressed)
+            self.strategy = assessment.strategy
+            if assessment.strategy == 'unsafe':
+                raise BackgroundRemovalRejected(assessment.reason)
+            if assessment.strategy == 'solid':
+                result = solid.remove_image(image, compressed)
+                self.background_confidence = solid.background_confidence
+                self.confidence_level = solid.confidence_level
+                return result
+            mask = self.segmentation_engine.predict(image)
+            self.background_confidence = validate_mask(mask)
+            self.confidence_level = 'HIGH' if self.background_confidence >= .92 else 'MEDIUM'
             output = io.BytesIO()
-            original.save(output, "PNG")
+            refine_mask(image, mask).save(output, 'PNG', optimize=True)
             return output.getvalue()
         finally:
             self._slot.release()

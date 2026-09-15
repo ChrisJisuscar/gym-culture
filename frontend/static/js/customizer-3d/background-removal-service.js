@@ -7,12 +7,12 @@ export class BackgroundRemovalService {
     const response = await fetch('/api/customizations/remove-background/', { method: 'POST', body: form });
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.detail || 'No se pudo procesar la imagen. Intentá con otro archivo.');
+      throw Object.assign(new Error(error.detail || 'No se pudo procesar la imagen. Intentá con otro archivo.'), { code: error.code });
     }
     const blob = await response.blob();
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => resolve({ dataUrl: reader.result, mimeType: 'image/png', size: blob.size, name: 'design-transparent.png' });
+      reader.onload = () => resolve({ dataUrl: reader.result, mimeType: 'image/png', size: blob.size, name: 'design-transparent.png', confidenceLevel: response.headers.get('X-Background-Confidence-Level') || 'MEDIUM' });
       reader.onerror = () => reject(new Error('No se pudo leer la imagen procesada.'));
       reader.readAsDataURL(blob);
     });

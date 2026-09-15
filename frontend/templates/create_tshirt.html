@@ -1,15 +1,36 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Creá tu remera — GYM CULTURE{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/customizer.css' %}">{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/customizer.css' %}">
+  <link rel="stylesheet" href="{% static 'css/recommendations.css' %}">
+{% endblock %}
 {% block content %}
-  {% include 'components/navbar.html' %}
-  <main class="customizer-page">
+  {% if customizer_mode == 'recommendation-admin' %}
+  <header class="recommendation-admin-nav"><a href="{% url 'backoffice-recommendations-page' %}">GYM <i>CULTURE</i></a><span>BACKOFFICE / CUSTOM LAB</span><form method="post" action="{% url 'backoffice-logout' %}">{% csrf_token %}<button class="button button-outline" type="submit">SALIR</button></form></header>
+  {% else %}{% include 'components/navbar.html' %}{% endif %}
+  <main class="customizer-page" data-customizer-mode="{{ customizer_mode }}" data-recommendation-id="{{ recommendation_id }}">
     <header class="customizer-intro">
-      <p class="eyebrow">CUSTOM LAB</p>
+      <p class="eyebrow">CUSTOM LAB{% if customizer_mode == 'recommendation-admin' %} / BACKOFFICE{% endif %}</p>
       <h1>CREÁ TU <i>ESTILO.</i></h1>
       <p>Elegí tu prenda, explorala en 360° y personalizá tu estilo.</p>
     </header>
+
+    {% if customizer_mode == 'recommendation-admin' %}
+    <form id="recommendation-editor-meta" class="recommendation-editor-meta panel">
+      {% csrf_token %}
+      <div class="recommendation-editor-fields">
+        <label>Nombre<input class="editor-input" name="name" maxlength="150" required placeholder="Nombre de la recomendación"></label>
+        <label>Cultura<select class="editor-input" name="culture" required>{% for culture in cultures %}<option value="{{ culture.id }}">{{ culture.name }}</option>{% endfor %}</select></label>
+        <label class="recommendation-check"><input name="active" type="checkbox" checked> Activa</label>
+        <label class="recommendation-check"><input name="featured" type="checkbox"> Destacada</label>
+      </div>
+      <div class="recommendation-editor-actions"><a class="button button-outline" href="{% url 'backoffice-recommendations-page' %}">VOLVER</a><button class="button button-accent" id="save-recommendation" type="submit" disabled>GUARDAR RECOMENDACIÓN</button></div>
+      <p id="recommendation-editor-feedback" role="status">Preparando el editor…</p>
+      <img id="recommendation-saved-preview" alt="Vista previa generada al guardar" hidden>
+    </form>
+    {% endif %}
+
     <div class="customizer-layout" data-product-id="{{ product.id|default:'' }}" data-product-name="{{ product.name|default:'Remera Oversize' }}" data-price="{{ product.price|default:'' }}">
       <aside class="config-panel panel">
         <div class="panel-title"><h2>PERSONALIZACIÓN</h2></div>
@@ -34,6 +55,7 @@
         <section class="selection-panel" id="selection-panel" hidden>
           <h3 id="selection-title">ELEMENTO SELECCIONADO</h3>
           <button type="button" class="button button-outline" id="remove-background" hidden>QUITAR FONDO</button>
+          <button type="button" class="button button-outline" id="restore-original" hidden>RESTAURAR ORIGINAL</button>
           <div id="text-properties" hidden>
             <label class="control-label" for="selected-text">CONTENIDO</label>
             <input class="editor-input" id="selected-text" type="text" maxlength="50">
@@ -113,20 +135,85 @@
           <div><dt>TALLA</dt><dd id="summary-size">XL</dd></div>
           <div><dt>DISEÑO</dt><dd id="summary-design">Lisa</dd></div>
         </dl>
+        {% if customizer_mode != 'recommendation-admin' %}
         <div class="price-list">
           <p><span>Precio base</span><b id="base-price">Gs. —</b></p>
           <p class="total"><span>TOTAL</span><b id="total-price">Gs. —</b></p>
         </div>
         <button type="button" class="button button-accent add-cart" id="add-cart">AGREGAR AL CARRITO</button>
         <p class="cart-note" id="cart-note" role="status"></p>
+        {% endif %}
       </aside>
     </div>
+
+    {% if customizer_mode != 'recommendation-admin' %}
+    {% if cultures %}
+    <section class="culture-bar" id="culturas" aria-label="Elegí tu cultura" tabindex="-1">
+      <div class="culture-chips" role="group" aria-label="Cultura">
+        {% for culture in cultures %}
+        <button type="button" class="culture-chip{% if culture.slug == selected_culture %} is-active{% endif %}"
+                data-culture="{{ culture.slug }}" aria-pressed="{% if culture.slug == selected_culture %}true{% else %}false{% endif %}">
+          <span class="culture-chip-name">{{ culture.name }}</span>
+        </button>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+    <section class="showroom" id="recommendations-showroom" aria-labelledby="showroom-title" data-active-culture="{{ selected_culture }}">
+      <div class="showroom-head">
+        <div>
+          <h2 id="showroom-title">RECOMENDACIONES<br><i>PARA TU CULTURA.</i></h2>
+        </div>
+        <div class="showroom-intro"><span class="showroom-live">EXPLORÁ. GIRÁ. HACELA TUYA.</span><p>Tu cultura, desde todos los ángulos.<br>Tocá una idea y descubrila en 3D.</p></div>
+      </div>
+      <div class="showroom-toolbar"><p><span data-showroom-culture></span><span aria-hidden="true">/</span><span data-showroom-garment>Remera Clásica</span></p><span id="showroom-count">—</span></div>
+      <p class="showroom-feedback" id="showroom-feedback" role="status" hidden></p>
+      <div class="showroom-stage" id="showroom-stage">
+        <div class="showroom-orbit-ring" aria-hidden="true"></div>
+        <div class="showroom-track" id="showroom-track" tabindex="0" role="region" aria-label="Recomendaciones en órbita. Arrastrá para explorar y tocá una preview para verla en 3D."></div>
+        <div class="recommendation-center">
+          <span class="recommendation-center-tag">SELECCIÓN GC / VISTA 360°</span>
+          <div id="recommendation-viewer" class="recommendation-viewer" aria-label="Recomendación 3D interactiva. Arrastrá para girar y usá la rueda para acercar.">
+            <img id="recommendation-central-preview" alt="Vista previa de la recomendación activa">
+            <span class="recommendation-loading" role="status">Preparando modelo 3D…</span>
+          </div>
+          <p class="recommendation-viewer-hint">↔ Arrastrá la prenda para girarla</p>
+        </div>
+      </div>
+      <div id="recommendation-summary" class="recommendation-summary" hidden><p id="recommendation-details"></p><h3 id="recommendation-title"></h3><button id="use-recommendation" class="button button-accent" type="button" disabled>USAR RECOMENDACIÓN <span aria-hidden="true">↗</span></button><p class="recommendation-edit-note">Después podés editar cada detalle en tu Custom Lab.</p></div>
+      <div class="showroom-empty" id="showroom-empty" hidden>
+        <span class="showroom-empty-mark" aria-hidden="true">GC / NEXT</span><h3>Tu próxima idea está en camino.</h3>
+        <p>Estamos preparando nuevos diseños para esta cultura. Mientras tanto, creá algo desde cero en el Custom Lab.</p>
+        <button type="button" class="showroom-use" data-showroom-edit>Crear mi diseño <span aria-hidden="true">↗</span></button>
+      </div>
+      <button type="button" class="showroom-use" id="showroom-retry" hidden>Volver a intentar ↗</button>
+      <footer class="showroom-footer"><p><span aria-hidden="true">✦</span> Inspiración lista. Personalidad a tu medida.</p><div class="showroom-navigation" aria-label="Explorar recomendaciones"><span>EXPLORÁ RECOMENDACIONES</span><button type="button" data-showroom-prev aria-label="Recomendación anterior">←</button><button type="button" data-showroom-next aria-label="Recomendación siguiente">→</button></div></footer>
+    </section>
+    {% endif %}
   </main>
+  <dialog id="background-preview-dialog" class="background-preview-dialog" aria-labelledby="background-preview-title" aria-describedby="background-preview-description">
+    <h2 id="background-preview-title">Revisá tu diseño.</h2>
+    <p id="background-preview-description">Compará los detalles antes de aplicar. Siempre podés restaurar el original.</p>
+    <div class="background-inspection" role="group" aria-label="Tamaño de inspección"><button type="button" data-background-view="fit" aria-pressed="true">Vista completa</button><button type="button" data-background-view="native" aria-pressed="false">Píxeles reales · 1:1</button><span>En 1:1 podés desplazar la imagen para revisar detalles.</span></div>
+    <div class="background-comparison">
+      <figure><figcaption>ANTES</figcaption><div class="transparency-grid"><img id="background-before" alt="Diseño original"></div></figure>
+      <figure><figcaption>DESPUÉS</figcaption><div class="transparency-grid"><img id="background-after" alt="Resultado propuesto sobre una cuadrícula de transparencia"></div></figure>
+    </div>
+    <p id="background-preview-feedback" role="status"></p>
+    <div class="background-preview-actions"><button type="button" class="button button-outline" id="background-restore-original" hidden>RESTAURAR ORIGINAL</button><button type="button" class="button button-outline" id="cancel-background">CANCELAR</button><button type="button" class="button button-accent" id="apply-background">APLICAR</button></div>
+  </dialog>
   {{ customizer_products|json_script:'customizer-products' }}
+  {% if cultures %}
+  {{ cultures|json_script:'recommendation-cultures' }}
+  {{ selected_culture|json_script:'recommendation-selected-culture' }}
+  {% endif %}
 {% endblock %}
 {% block extra_js %}
   <script src="{% static 'js/customization-api.js' %}" defer></script>
+  <script src="{% static 'js/background-preview.js' %}" defer></script>
   <script src="{% static 'js/customizer.js' %}" defer></script>
   <script type="importmap">{ "imports": { "three": "/static/vendor/three/three.module.min.js" } }</script>
   <script type="module" src="{% static 'js/customizer-3d.js' %}"></script>
+  <script type="module" src="{% static 'js/recommendations.js' %}"></script>
+  {% if customizer_mode == 'recommendation-admin' %}<script type="module" src="{% static 'js/recommendation-admin.js' %}"></script>{% endif %}
 {% endblock %}

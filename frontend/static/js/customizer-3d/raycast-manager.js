@@ -1,5 +1,22 @@
 import * as THREE from '/static/vendor/three/three.module.min.js';
 
+export function garmentSurfaceHit(hit, rayDirection) {
+  if (!hit?.face) return null;
+  const { object: mesh, face } = hit, geometry = mesh.geometry;
+  const point = mesh.worldToLocal(hit.point.clone());
+  const vertices = [face.a, face.b, face.c].map(index => new THREE.Vector3().fromBufferAttribute(geometry.attributes.position, index));
+  const barycentric = THREE.Triangle.getBarycoord(point, ...vertices, new THREE.Vector3());
+  const normal = face.normal.clone();
+  // Interpolated normals avoid an orientation jump at each triangle boundary.
+  if (geometry.attributes.normal && barycentric) {
+    normal.set(0, 0, 0);
+    [face.a, face.b, face.c].forEach((index, offset) => normal.addScaledVector(new THREE.Vector3().fromBufferAttribute(geometry.attributes.normal, index), barycentric.getComponent(offset)));
+  }
+  normal.applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(mesh.matrixWorld));
+  if (rayDirection && normal.dot(rayDirection) > 0) normal.negate();
+  return { mesh, point: hit.point.clone(), normal };
+}
+
 export class RaycastManager {
   constructor(camera, canvas) {
     this.camera = camera;
@@ -20,10 +37,6 @@ export class RaycastManager {
   }
 
   garmentHit(event, meshes) {
-    const hit = this.cast(event, meshes)[0];
-    if (!hit?.face) return null;
-    const normal = hit.face.normal.clone().applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld));
-    if (normal.dot(this.raycaster.ray.direction) > 0) normal.negate();
-    return { mesh: hit.object, point: hit.point.clone(), normal };
+    return garmentSurfaceHit(this.cast(event, meshes)[0], this.raycaster.ray.direction);
   }
 }

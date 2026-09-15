@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "cart",
     "customizations.apps.CustomizationsConfig",
     "payments.apps.PaymentsConfig",
+    "recommendations.apps.RecommendationsConfig",
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
 ]
@@ -66,6 +67,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "users.backoffice.BackofficeAccessMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -80,6 +82,7 @@ TEMPLATES = [
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.request",
+                "django.template.context_processors.csrf",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
             ],
@@ -154,6 +157,7 @@ EMAIL_BACKEND = os.getenv(
 AUTH_USER_MODEL = "users.User"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+BACKGROUND_REMOVAL_MODEL_PATH = Path(os.getenv("BACKGROUND_REMOVAL_MODEL_PATH", str(BASE_DIR / "var" / "models" / "birefnet-general-lite.onnx")))
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -174,6 +178,12 @@ SIMPLE_JWT = {
 }
 
 AUTHENTICATION_BACKENDS = ["users.backends.EmailBackend"]
+
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SAMESITE = "Lax"
 
 PAYMENT_PROVIDER = os.getenv("PAYMENT_PROVIDER", "mock" if DEBUG else "")
 PAYMENT_CURRENCY = os.getenv("PAYMENT_CURRENCY", "PYG").upper()

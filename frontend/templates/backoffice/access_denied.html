@@ -1,0 +1,2 @@
+{% extends 'backoffice/auth_base.html' %}
+{% block auth_content %}<p class="eyebrow">BACKOFFICE</p><h1>Acceso restringido.</h1><p>Tu cuenta no tiene permisos administrativos.</p><a class="bo-button" href="{% url 'backoffice-login' %}">INGRESAR CON OTRA CUENTA</a>{% endblock %}

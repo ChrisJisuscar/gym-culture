@@ -15,9 +15,13 @@
   </head>
   <body>
     {% block content %}{% endblock %}
+    {% if customizer_mode == 'recommendation-admin' %}
+    <script src="{% static 'js/backoffice-session.js' %}" defer></script>
+    {% else %}
     <script src="{% static 'js/auth-session.js' %}" defer></script>
     <script src="{% static 'js/cart.js' %}" defer></script>
     <script src="{% static 'js/main.js' %}" defer></script>
+    {% endif %}
     {% block extra_js %}{% endblock %}
   </body>
 </html>

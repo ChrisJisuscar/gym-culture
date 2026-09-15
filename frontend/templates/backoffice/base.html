@@ -4,12 +4,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token }}">
   <title>{% block title %}Backoffice{% endblock %} | GYM CULTURE</title>
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
   <link rel="stylesheet" href="{% static 'css/backoffice.css' %}">
 </head>
 <body class="backoffice-body">
-  <header class="bo-topbar"><a href="{% url 'backoffice-dashboard-page' %}">GYM <i>CULTURE</i> <span>ADMIN</span></a><strong id="bo-user">Operaciones</strong></header>
+  {% csrf_token %}
+  <header class="bo-topbar"><a href="{% url 'backoffice-dashboard-page' %}">GYM <i>CULTURE</i> <span>ADMIN</span></a><div class="bo-session"><strong id="bo-user">{{ request.user.get_short_name|default:request.user.username }}</strong><form method="post" action="{% url 'backoffice-logout' %}">{% csrf_token %}<button type="submit" class="bo-button">SALIR</button></form></div></header>
   <aside class="bo-sidebar">
     <nav>
       <a data-nav-section="dashboard" href="{% url 'backoffice-dashboard-page' %}">Dashboard</a>
@@ -17,6 +19,7 @@
       <a data-nav-section="production" href="{% url 'backoffice-production-page' %}">Producción</a>
       <a data-nav-section="products" href="{% url 'backoffice-products-page' %}">Productos</a>
       <a data-nav-section="stock" href="{% url 'backoffice-stock-page' %}">Stock</a>
+      <a data-nav-section="recommendations" href="{% url 'backoffice-recommendations-page' %}">Recomendaciones</a>
       <a data-nav-section="customers" href="{% url 'backoffice-customers-page' %}">Clientes</a>
     </nav>
     <a href="{% url 'home' %}">← Volver a tienda</a>
@@ -24,7 +27,7 @@
   <main class="bo-main" data-backoffice-view="{% block view_name %}{% endblock %}" {% block view_data %}{% endblock %}>
     {% block content %}{% endblock %}
   </main>
-  <script src="{% static 'js/auth-session.js' %}" defer></script>
+  <script src="{% static 'js/backoffice-session.js' %}" defer></script>
   {% block extra_scripts %}{% endblock %}
   <script src="{% static 'js/backoffice.js' %}" defer></script>
 </body>

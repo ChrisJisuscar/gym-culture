@@ -1,13 +1,14 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs/promises');
+const sessions=require('./session-fixture.cjs');
 const {chromium}=require('../../.venv/custom-lab-tools/node_modules/playwright');
 (async()=>{
-  const {token}=JSON.parse(await fs.readFile('.venv/backoffice-browser-token.json','utf8'));
+  const fixture=sessions.create();
   const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
   try {
     const page=await browser.newPage({viewport:{width:1440,height:1000}});
     const errors=[]; page.on('pageerror',error=>errors.push(error.message));
-    await page.addInitScript(token=>localStorage.setItem('gc_access_token',token),token);
+    await sessions.login(page,fixture,'http://127.0.0.1:8767');
     await fs.mkdir('.venv/backoffice-audit',{recursive:true});
     const visit=async(path,name)=>{
       await page.goto('http://127.0.0.1:8767'+path);
@@ -108,5 +109,5 @@ const {chromium}=require('../../.venv/custom-lab-tools/node_modules/playwright')
     await visit('/backoffice/products/','products-mobile');
     assert.deepEqual(errors,[]);
     console.log('PASS six real Backoffice pages, order identity/previews, focused variant, confirmed restock refresh, mobile and no JS errors');
-  } finally {await browser.close();}
+  } finally {await browser.close();sessions.remove(fixture);}
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -81,6 +81,46 @@ class CustomizationApiTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Customization.objects.get().user, self.user)
 
+    def test_background_versions_survive_cart_round_trip_and_restore(self):
+        from .background_removal import BackgroundRemovalService
+        from .test_background_removal import encoded, logo
+
+        self.client.force_authenticate(self.user)
+        original = encoded(logo()).getvalue()
+        derived = BackgroundRemovalService().remove(io.BytesIO(original))
+        payload = self.payload(with_image=True)
+        config = json.loads(payload['configuration'])
+        design = config['designs'][1]
+        design.update(originalAssetKey='original', backgroundRemoved=True, rotation=21, scale=1.35)
+        payload.update(configuration=json.dumps(config), add_to_cart='true')
+        payload['asset_original'] = SimpleUploadedFile('original.png', original, content_type='image/png')
+        payload['asset_upload-1'] = SimpleUploadedFile('derived.png', derived, content_type='image/png')
+        response = self.client.post('/api/customizations/', payload, format='multipart')
+        self.assertEqual(response.status_code, 201, response.data)
+        pk = response.data['id']
+        saved = self.client.get(f'/api/customizations/{pk}/').data['configuration']
+        design = saved['designs'][1]
+        original_id, derived_id = design['originalAssetId'], design['assetId']
+        self.assertNotEqual(original_id, derived_id)
+        self.assertTrue(design['backgroundRemoved'])
+        self.assertEqual(design['position'], config['designs'][1]['position'])
+        self.assertEqual((design['rotation'], design['scale']), (21, 1.35))
+        self.assertEqual(str(CartItem.objects.get().customization_id), str(pk))
+        with CustomizationAsset.objects.get(pk=original_id).file.open('rb') as asset:
+            self.assertEqual(asset.read(), original)
+        with CustomizationAsset.objects.get(pk=derived_id).file.open('rb') as asset:
+            result = Image.open(asset)
+            self.assertEqual(result.getpixel((0, 0))[3], 0)
+            self.assertEqual(result.getpixel((128, 128))[3], 255)
+        design.update(assetId=design.pop('originalAssetId'), assetUrl=design.pop('originalAssetUrl'), backgroundRemoved=False)
+        patch = {'product': self.product.id, 'variant': self.variant.id, 'configuration': json.dumps(saved),
+                 'preview_front': self.image(image_format='WEBP'), 'preview_back': self.image(image_format='WEBP')}
+        restored = self.client.patch(f'/api/customizations/{pk}/', patch, format='multipart')
+        self.assertEqual(restored.status_code, 200, restored.data)
+        self.assertEqual(restored.data['configuration']['designs'][1]['assetId'], original_id)
+        self.assertEqual(CustomizationAsset.objects.filter(customization_id=pk).count(), 1)
+        self.assertEqual(CartItem.objects.count(), 1)
+
     def test_oversized_round_trip_with_assets_previews_and_cart(self):
         original_stock = self.variant.stock
         self.product.garment_type = "oversized"

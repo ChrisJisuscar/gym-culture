@@ -1,4 +1,5 @@
 import * as THREE from '/static/vendor/three/three.module.min.js';
+import { relaxPrintSurface } from './print-surface.js';
 
 export const disposeModel = (model) => {
   const geometries = new Set();
@@ -21,7 +22,7 @@ export const disposeModel = (model) => {
   model?.removeFromParent();
 };
 
-export const prepareGarment = (model, color) => {
+export const prepareGarment = (model, color, definition = {}) => {
   const meshes = [];
   const sourceMaterials = new Set();
   const sourceTextures = new Set();
@@ -38,8 +39,8 @@ export const prepareGarment = (model, color) => {
   }
   model.position.sub(box.getCenter(new THREE.Vector3()));
   model.updateMatrixWorld(true);
-  // The tshirt maps contain branding; Oversize is exported with no maps.
-  // One fabric material preserves geometry and vertex normals on both models.
+  if (definition.printSurface) meshes.forEach(mesh => relaxPrintSurface(mesh, size.y, definition.printSurface));
+  // Use one unbranded fabric material on every visual/projection surface.
   const material = new THREE.MeshStandardMaterial({
     name: 'plain_fabric', color, metalness: 0, roughness: 0.88, side: THREE.DoubleSide,
   });
@@ -52,7 +53,13 @@ export const prepareGarment = (model, color) => {
     texture.dispose();
     texture.source?.data?.close?.();
   });
-  return { model, meshes, materials: [material], size };
+  let radius = 0;
+  const vertex = new THREE.Vector3();
+  meshes.forEach(mesh => {
+    const positions = mesh.geometry.attributes.position;
+    for (let index = 0; index < positions.count; index++) radius = Math.max(radius, vertex.fromBufferAttribute(positions, index).applyMatrix4(mesh.matrixWorld).length());
+  });
+  return { model, meshes, materials: [material], size, radius };
 };
 
 export const getFrameDistance = (size, fieldOfView, aspect, fillRatio) => {

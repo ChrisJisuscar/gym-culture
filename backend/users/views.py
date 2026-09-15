@@ -1,3 +1,4 @@
+from users.backoffice import BackofficeAPIView
 from django.db.models import Count, DecimalField, Max, Q, Sum, Value
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
@@ -11,7 +12,6 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User
-from .permissions import IsAdminRole
 from .serializers import AdminCustomerDetailSerializer, AdminCustomerListSerializer, RegisterSerializer, UserSerializer
 
 
@@ -68,8 +68,7 @@ def customer_queryset():
     )
 
 
-class BackofficeCustomersAPI(APIView):
-    permission_classes = [IsAdminRole]
+class BackofficeCustomersAPI(BackofficeAPIView):
 
     def get(self, request):
         queryset = customer_queryset().filter(is_active=request.query_params.get("active", "true") != "false").order_by("-date_joined")
@@ -86,8 +85,7 @@ class BackofficeCustomersAPI(APIView):
         return paginator.get_paginated_response(AdminCustomerListSerializer(page, many=True).data)
 
 
-class BackofficeCustomerDetailAPI(APIView):
-    permission_classes = [IsAdminRole]
+class BackofficeCustomerDetailAPI(BackofficeAPIView):
 
     @transaction.atomic
     def patch(self, request, pk):

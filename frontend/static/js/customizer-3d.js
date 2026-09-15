@@ -5,6 +5,7 @@ import { DesignManager } from './customizer-3d/design-manager.js';
 import { RaycastManager } from './customizer-3d/raycast-manager.js';
 import { GARMENTS, getGarment } from './customizer-3d/garments.js';
 import { disposeModel, prepareGarment, getFrameDistance } from './customizer-3d/garment-model.js';
+import { recommendationHit } from './customizer-3d/recommendation-placement.js';
 
 const container = document.querySelector('#customizer-3d-container');
 const statusElement = document.querySelector('#viewer-status');
@@ -18,7 +19,8 @@ const Customizer3D = (() => {
     controls: {
       minPolarAngle: Math.PI * 0.22,
       maxPolarAngle: Math.PI * 0.72,
-      minDistanceFactor: 0.72,
+      minDistanceFactor: 0.22,
+      surfaceClearanceFactor: 0.035,
       maxDistanceFactor: 2.3,
       dampingFactor: 0.065,
       rotateSpeed: 0.72,
@@ -27,6 +29,14 @@ const Customizer3D = (() => {
   };
 
   let scene;
+  let editorGroup;
+  let preview = null;
+  let previewHost = null;
+  let previewMode = false;
+  let previewVersion = 0;
+  let editorCameraState = null;
+  const frameSubscribers = new Set();
+  let lastFrame = null;
   let camera;
   let renderer;
   let controls;
@@ -34,6 +44,7 @@ const Customizer3D = (() => {
   let garmentMaterials = [];
   let garmentMeshes = [];
   let garmentSize;
+  let garmentRadius;
   let designManager;
   let raycastManager;
   let draggingDesign = false;
@@ -47,19 +58,22 @@ const Customizer3D = (() => {
   let currentColor = '#111015';
 
   const getViewport = () => ({
-    width: Math.max(container?.clientWidth || 0, 1),
-    height: Math.max(container?.clientHeight || 0, 1),
+    width: Math.max((previewMode ? previewHost : container)?.clientWidth || 0, 1),
+    height: Math.max((previewMode ? previewHost : container)?.clientHeight || 0, 1),
   });
 
   const setStatus = (message, isError = false) => {
     if (!statusElement) return;
     statusElement.textContent = message;
     statusElement.classList.toggle('is-error', isError);
+    statusElement.classList.toggle('is-hint', !!garment && !busy && !isError);
     statusElement.hidden = !message;
   };
 
   const createScene = () => {
     scene = new THREE.Scene();
+    editorGroup = new THREE.Group();
+    scene.add(editorGroup);
     const hemisphere = new THREE.HemisphereLight(0xe8e1f4, 0x15111d, 1.25);
     const key = new THREE.DirectionalLight(0xffffff, 1.8);
     key.position.set(3, 4, 5);
@@ -73,7 +87,7 @@ const Customizer3D = (() => {
   const createRenderer = () => {
     const { width, height } = getViewport();
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, config.pixelRatioLimit));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, previewMode ? 1.5 : config.pixelRatioLimit));
     renderer.setSize(width, height, false);
     renderer.setClearColor(0x000000, 0);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -94,17 +108,20 @@ const Customizer3D = (() => {
   };
 
   const frameGarment = () => {
-    if (!garmentSize) return;
-    const distance = getFrameDistance(garmentSize, camera.fov, camera.aspect, config.fillRatio);
+    const size = previewMode ? preview?.size : garmentSize;
+    if (!size) return;
+    const distance = getFrameDistance(size, camera.fov, camera.aspect, config.fillRatio);
     // Flush OrbitControls damping before assigning the new framing.
     controls.enableDamping = false;
     controls.update();
     controls.target.set(0, 0, 0);
-    camera.position.set(0, garmentSize.y * 0.04, distance);
+    camera.position.set(0, size.y * 0.04, distance);
     camera.near = Math.max(distance * 0.002, 0.0001);
     camera.far = distance * 20;
     camera.updateProjectionMatrix();
-    controls.minDistance = Math.max(distance * config.controls.minDistanceFactor, garmentSize.z * 1.2);
+    const radius = previewMode ? preview?.radius : garmentRadius;
+    // The camera stays outside every vertex, at every allowed viewing angle.
+    controls.minDistance = Math.max(distance * config.controls.minDistanceFactor, radius + size.y * config.controls.surfaceClearanceFactor);
     controls.maxDistance = distance * config.controls.maxDistanceFactor;
     controls.update();
     controls.enableDamping = true;
@@ -145,7 +162,7 @@ const Customizer3D = (() => {
     let prepared;
     try {
       if (!gltf.scene) throw new Error('El GLB no contiene una escena utilizable.');
-      prepared = prepareGarment(gltf.scene, currentColor);
+      prepared = prepareGarment(gltf.scene, currentColor, definition);
     } catch (error) {
       disposeModel(gltf.scene);
       throw error;
@@ -156,7 +173,8 @@ const Customizer3D = (() => {
     garmentMeshes = prepared.meshes;
     garmentMaterials = prepared.materials;
     garmentSize = prepared.size;
-    scene.add(garment);
+    garmentRadius = prepared.radius;
+    editorGroup.add(garment);
     frameGarment();
     if (designManager) designManager.garmentSize = garmentSize;
     else bindDesignInteraction();
@@ -180,6 +198,7 @@ const Customizer3D = (() => {
   const setHoodState = (value) => { if (!busy) applyHoodState(value); };
 
   const setGarmentType = async (type) => {
+    activateEditor();
     if (busy || !getGarment(type)?.enabled) return false;
     if (garment && type === window.GymCultureCustomizer.state.garmentType) return true;
     if ((designManager?.designs.length || designManager?.pending) &&
@@ -208,7 +227,7 @@ const Customizer3D = (() => {
   };
 
   const handlePointerDown = (event) => {
-    if (busy || !designManager || !controls) return;
+    if (previewMode || busy || !designManager || !controls) return;
     if (repositioningDesign) {
       const hit = raycastManager.garmentHit(event, garmentMeshes);
       if (!hit) return;
@@ -275,7 +294,7 @@ const Customizer3D = (() => {
   const bindDesignInteraction = () => {
     raycastManager = new RaycastManager(camera, renderer.domElement);
     designManager = new DesignManager({
-      scene,
+      scene: editorGroup,
       designs: window.GymCultureCustomizer.state.designs,
       garmentSize,
       onChange: notifySelection,
@@ -296,15 +315,23 @@ const Customizer3D = (() => {
     frameGarment();
   };
 
-  const render = () => {
+  const render = (time = 0) => {
     animationFrameId = requestAnimationFrame(render);
-    if (!busy) {
+    // DOM autoplay needs real elapsed time. Clamping to 50 ms slows the orbit
+    // on low-FPS devices; reset the clock on visibility changes instead.
+    const delta = lastFrame === null ? 0 : Math.max(0, (time - lastFrame) / 1000);
+    lastFrame = time;
+    if (document.hidden) return;
+    frameSubscribers.forEach(callback => callback(time, delta));
+    const rect = renderer?.domElement.getBoundingClientRect();
+    if (!busy && rect && rect.bottom > 0 && rect.top < innerHeight) {
       controls?.update();
       renderer?.render(scene, camera);
     }
   };
 
   const setColor = (hexColor) => {
+    activateEditor();
     if (!/^#[0-9a-f]{6}$/i.test(hexColor || '')) {
       console.error('[GYM CULTURE 3D] Color inválido.', hexColor);
       return;
@@ -314,6 +341,7 @@ const Customizer3D = (() => {
   };
 
   const prepareImage = async (file) => {
+    activateEditor();
     if (busy || !designManager) throw new Error('Esperá a que termine de cargar la prenda.');
     await designManager.prepareImage(file);
     repositioningDesign = false;
@@ -322,6 +350,7 @@ const Customizer3D = (() => {
   };
 
   const prepareText = (settings) => {
+    activateEditor();
     if (busy || !designManager) throw new Error('Esperá a que termine de cargar la prenda.');
     designManager.prepareText(settings);
     repositioningDesign = false;
@@ -360,11 +389,12 @@ const Customizer3D = (() => {
     designs: window.GymCultureCustomizer?.state.designs || [],
   }));
 
-  const canvasToBlob = (canvas) => new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('No se pudo generar el preview.')), 'image/webp', 0.9);
+  const canvasToBlob = (canvas, quality = .9) => new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('No se pudo generar el preview.')), 'image/webp', quality);
   });
 
-  const capturePreviews = async () => {
+  const capturePreviews = async ({ size = 1024, quality = .9 } = {}) => {
+    activateEditor();
     if (designManager?.processing) throw new Error('Esperá a que termine de quitarse el fondo antes de guardar.');
     if (busy || !garment || !designManager) throw new Error('La prenda todavía no está lista.');
     setBusy(true);
@@ -382,7 +412,8 @@ const Customizer3D = (() => {
     designManager.setSelectionHighlight(false);
     try {
       renderer.setPixelRatio(1);
-      renderer.setSize(1024, 1024, false);
+      const resolution = Math.max(256, Math.min(1024, size));
+      renderer.setSize(resolution, resolution, false);
       renderer.setClearColor(0x100d18, 1);
       const capture = async (direction) => {
         if (generation !== lifecycle) throw new Error('El visor se cerró durante el preview.');
@@ -390,7 +421,7 @@ const Customizer3D = (() => {
         previewCamera.lookAt(0, 0, 0);
         renderer.render(scene, previewCamera);
         // toBlob snapshots immediately, before the next animation frame.
-        return canvasToBlob(renderer.domElement);
+        return canvasToBlob(renderer.domElement, quality);
       };
       return { front: await capture(1), back: await capture(-1) };
     } finally {
@@ -408,7 +439,53 @@ const Customizer3D = (() => {
     }
   };
 
+  const vectorData = (vector) => ({ x: vector.x, y: vector.y, z: vector.z });
+
+  // The showroom and editor resolve the preset against the same garment geometry.
+  const applyRecommendation = async ({ assetUrl, garmentType, position, rotation = 0, scale = 1, name, baseColor, baseColorHex }) => {
+    if (!designManager) throw new Error('Esperá a que termine de cargar la prenda.');
+    if (busy) throw new Error('Esperá a que termine la operación actual.');
+    if (garmentType && garmentType !== window.GymCultureCustomizer.state.garmentType) {
+      if (!getGarment(garmentType)?.enabled) throw new Error('Esta prenda todavía no está disponible.');
+      if (busy) throw new Error('Esperá a que termine la operación actual.');
+      const changed = await setGarmentType(garmentType);
+      if (!changed) throw new Error('No se pudo cambiar la prenda para aplicar la recomendación.');
+    }
+    const generation = lifecycle;
+    setBusy(true);
+    try {
+      const hit = recommendationHit(garmentMeshes, garmentSize, position);
+      if (!hit) throw new Error('No pudimos encontrar una superficie en la prenda para colocar el diseño.');
+      const design = await designManager.applyRemoteDesign({
+        assetUrl,
+        position: vectorData(hit.point),
+        normal: vectorData(hit.normal),
+        mesh: hit.mesh,
+        rotation,
+        scale,
+        sourceName: name,
+      });
+      if (baseColor && baseColorHex) {
+        Object.assign(window.GymCultureCustomizer.state, { garmentColor: baseColor, garmentColorHex: baseColorHex });
+        setColor(baseColorHex);
+      }
+      frameGarment();
+      if (position?.z < 0) { camera.position.z *= -1; controls.update(); }
+      designManager.notify();
+      container.classList.remove('is-placing', 'is-dragging-design');
+      setStatus('Diseño recomendado aplicado. Arrastralo o ajustalo libremente.');
+      document.dispatchEvent(new CustomEvent('gymculture:recommendation-applied', { detail: { assetUrl, garmentType } }));
+      return design;
+    } finally {
+      if (generation === lifecycle) {
+        setBusy(false);
+        handleResize();
+      }
+    }
+  };
+
   const loadCustomization = async (configuration) => {
+    activateEditor();
     if (configuration?.version !== 1 || !getGarment(configuration.garment?.type)?.enabled || !Array.isArray(configuration.designs)) {
       throw new Error('La versión o prenda de la personalización no es compatible.');
     }
@@ -443,7 +520,101 @@ const Customizer3D = (() => {
     }
   };
 
+  // The public preview borrows this canvas, scene, camera, controls and RAF.
+  // The editor's group stays in memory (hidden), preserving pending uploads,
+  // selection and every unsaved change. Only one group is rendered at a time.
+  const activateEditor = () => {
+    if (!previewMode || !renderer) return;
+    previewMode = false;
+    editorGroup.visible = true;
+    if (preview) preview.group.visible = false;
+    container.append(renderer.domElement);
+    container.querySelector('.lab-snapshot')?.remove();
+    previewHost?.classList.remove('has-live-viewer');
+    handleResize();
+    if (editorCameraState) {
+      camera.position.copy(editorCameraState.position);
+      controls.target.copy(editorCameraState.target);
+      controls.enableDamping = false; controls.update(); controls.enableDamping = true;
+    }
+  };
+
+  const activatePreview = (host = previewHost) => {
+    if (!preview || busy || !renderer || !host) return false;
+    previewHost = host;
+    if (previewMode) return true;
+    editorCameraState = { position: camera.position.clone(), target: controls.target.clone() };
+    renderer.render(scene, camera);
+    const snapshot = document.createElement('img');
+    snapshot.className = 'lab-snapshot'; snapshot.alt = 'Tu personalización actual';
+    snapshot.src = renderer.domElement.toDataURL('image/webp', .8);
+    container.querySelector('.lab-snapshot')?.remove(); container.append(snapshot);
+    previewMode = true;
+    editorGroup.visible = false; preview.group.visible = true;
+    host.append(renderer.domElement); host.classList.add('has-live-viewer');
+    handleResize();
+    return true;
+  };
+
+  const clearPreview = ({ invalidate = true } = {}) => {
+    if (invalidate) previewVersion++;
+    activateEditor();
+    if (!preview) return;
+    preview.manager.clearResources();
+    disposeModel(preview.model);
+    preview.group.removeFromParent();
+    preview = null;
+  };
+
+  const configurePreview = async (item, host) => {
+    const version = ++previewVersion;
+    const configuration = item.customization_state;
+    const type = configuration?.garment?.type || item.garment_type;
+    const definition = getGarment(type);
+    if (!definition) throw new Error('La recomendación tiene una prenda inválida.');
+    if (!preview || preview.type !== type) {
+      const gltf = await loader.loadAsync(definition.modelUrl);
+      if (version !== previewVersion || !initialized) { disposeModel(gltf.scene); return false; }
+      const prepared = prepareGarment(gltf.scene, configuration?.garment?.colorHex || item.base_color_hex, definition);
+      clearPreview({ invalidate: false });
+      const group = new THREE.Group(); group.visible = false; group.add(prepared.model); scene.add(group);
+      preview = { ...prepared, group, type, manager: new DesignManager({ scene: group, designs: [], garmentSize: prepared.size }) };
+    }
+    previewHost = host;
+    const current = preview;
+    const hood = configuration?.garment?.hoodState || 'down';
+    current.meshes.forEach(mesh => { if (definition.hoodMeshes && Object.values(definition.hoodMeshes).includes(mesh.name)) mesh.visible = mesh.name === definition.hoodMeshes[hood]; });
+    current.materials.forEach(material => material.color.set(configuration?.garment?.colorHex || item.base_color_hex));
+    current.manager.clearResources();
+    if (configuration?.version === 1) {
+      current.manager.designs.push(...JSON.parse(JSON.stringify(configuration.designs)));
+      const failed = await current.manager.restoreAll(current.meshes);
+      if (failed.length) throw new Error('No se pudieron cargar todos los elementos de la recomendación.');
+    } else {
+      const hit = recommendationHit(current.meshes, current.size, item.default_position);
+      await current.manager.applyRemoteDesign({ assetUrl: item.design_asset_url, position: hit.point, normal: hit.normal, mesh: hit.mesh, scale: item.default_scale, rotation: item.default_rotation });
+    }
+    if (version !== previewVersion) return false;
+    current.manager.setSelectionHighlight(false);
+    if (previewMode) { current.group.visible = true; handleResize(); }
+    return true;
+  };
+
+  const activateFromEditor = () => activateEditor();
+  const resetFrameClock = () => { lastFrame = null; };
+  document.addEventListener('visibilitychange', resetFrameClock);
+  window.addEventListener('pageshow', resetFrameClock);
+  document.querySelector('.customizer-layout')?.addEventListener('pointerdown', activateFromEditor, true);
+  document.querySelector('.customizer-layout')?.addEventListener('focusin', activateFromEditor, true);
+
   const dispose = () => {
+    document.removeEventListener('visibilitychange', resetFrameClock);
+    window.removeEventListener('pageshow', resetFrameClock);
+    previewVersion++;
+    clearPreview();
+    frameSubscribers.clear();
+    document.querySelector('.customizer-layout')?.removeEventListener('pointerdown', activateFromEditor, true);
+    document.querySelector('.customizer-layout')?.removeEventListener('focusin', activateFromEditor, true);
     lifecycle += 1;
     if (animationFrameId) cancelAnimationFrame(animationFrameId);
     resizeObserver?.disconnect();
@@ -505,7 +676,14 @@ const Customizer3D = (() => {
     init, dispose, setColor, prepareImage, prepareText,
     updateSelectedDesign, removeSelectedDesign, rearmSelectedDesign,
     removeBackground: () => designManager?.removeBackground(),
+    applyBackgroundRemoval: () => designManager?.applyBackgroundRemoval(),
+    cancelBackgroundRemoval: () => designManager?.cancelBackgroundRemoval(),
+    restoreOriginal: () => designManager?.restoreOriginal(),
     getCustomizationState, capturePreviews, loadCustomization, setGarmentType, setHoodState,
+    applyDesignAsset: applyRecommendation,
+    configurePreview, activatePreview, activateEditor, clearPreview,
+    subscribeFrame: (callback) => { frameSubscribers.add(callback); return () => frameSubscribers.delete(callback); },
+    isPreviewActive: () => previewMode,
     garments: GARMENTS,
     whenReady: () => initialLoad,
     isReady: () => Boolean(garment && designManager && !busy),

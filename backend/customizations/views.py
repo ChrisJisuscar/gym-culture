@@ -24,7 +24,7 @@ class BackgroundRemovalAPI(APIView):
     def post(self, request):
         import logging
         from django.http import HttpResponse
-        from .background_removal import BackgroundRemovalService, BackgroundRemovalBusy
+        from .background_removal import BackgroundRemovalService, BackgroundRemovalBusy, BackgroundRemovalRejected, SegmentationUnavailable
         from .validators import validate_uploaded_image
 
         upload = request.FILES.get("image")
@@ -32,13 +32,19 @@ class BackgroundRemovalAPI(APIView):
             return Response({"detail": "Seleccioná una imagen PNG, JPG o WebP."}, status=400)
         validate_uploaded_image(upload)
         try:
-            result = BackgroundRemovalService().remove(upload)
+            service = BackgroundRemovalService()
+            result = service.remove(upload)
+        except BackgroundRemovalRejected as error:
+            return Response({"detail": str(error), "code": error.reason, "backgroundConfidence": round(error.confidence, 3), "confidenceLevel": "UNSAFE"}, status=422, headers={"Cache-Control": "no-store"})
         except BackgroundRemovalBusy:
             return Response({"detail": "Estamos procesando otra imagen. Intentá de nuevo en unos segundos."}, status=429)
+        except SegmentationUnavailable:
+            logging.getLogger(__name__).warning('Local segmentation model unavailable; run prepare_background_removal --download')
+            return Response({"detail": "La separación avanzada no está disponible en este momento. Se conservó tu diseño original.", "code": "segmentation_unavailable"}, status=503)
         except Exception:
             logging.getLogger(__name__).exception("image_processing_error: background removal")
             return Response({"detail": "No pudimos quitar el fondo de esta imagen. Intentá nuevamente en unos momentos."}, status=503)
-        return HttpResponse(result, content_type="image/png", headers={"Cache-Control": "no-store"})
+        return HttpResponse(result, content_type="image/png", headers={"Cache-Control": "no-store", "X-Background-Confidence": str(round(getattr(service, 'background_confidence', 0), 3)), "X-Background-Confidence-Level": getattr(service, 'confidence_level', 'HIGH'), "X-Background-Strategy": service.strategy})
 
 
 class CustomizationCollectionAPI(APIView):

@@ -1,3 +1,4 @@
+from users.backoffice import BackofficeAPIView
 import json
 
 from django.db import transaction
@@ -8,7 +9,7 @@ from rest_framework import serializers, status, viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.views import APIView
+from rest_framework.authentication import SessionAuthentication
 
 from customizations.validators import validate_uploaded_image
 from users.permissions import IsAdminRole
@@ -27,7 +28,14 @@ from .serializers import (
 from .services import adjust_stock, stock_queryset
 
 
-class CategoryViewSet(viewsets.ModelViewSet):
+class CatalogAdminWritesMixin:
+    def get_authenticators(self):
+        if self.request.method not in ('GET', 'HEAD', 'OPTIONS'):
+            return [SessionAuthentication()]
+        return super().get_authenticators()
+
+
+class CategoryViewSet(CatalogAdminWritesMixin, viewsets.ModelViewSet):
     queryset = Category.objects.filter(active=True)
     serializer_class = CategorySerializer
 
@@ -41,7 +49,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class ProductViewSet(viewsets.ModelViewSet):
+class ProductViewSet(CatalogAdminWritesMixin, viewsets.ModelViewSet):
     queryset = Product.objects.filter(active=True).select_related("category").prefetch_related(
         Prefetch("variants", queryset=ProductVariant.objects.filter(active=True)), "images"
     )
@@ -94,8 +102,7 @@ def save_uploaded_images(request, product):
         ProductImage.objects.create(product=product, image=upload, is_main=not has_main and index == 0)
 
 
-class BackofficeProductsAPI(APIView):
-    permission_classes = [IsAdminRole]
+class BackofficeProductsAPI(BackofficeAPIView):
     pagination_class = BackofficePagination
 
     def get(self, request):
@@ -122,8 +129,7 @@ class BackofficeProductsAPI(APIView):
         return Response(AdminProductSerializer(product_queryset().get(pk=product.pk), context={"request": request}).data, status=status.HTTP_201_CREATED)
 
 
-class BackofficeProductDetailAPI(APIView):
-    permission_classes = [IsAdminRole]
+class BackofficeProductDetailAPI(BackofficeAPIView):
 
     def get(self, request, pk):
         product = get_object_or_404(product_queryset(), pk=pk)
@@ -139,8 +145,7 @@ class BackofficeProductDetailAPI(APIView):
         return Response(AdminProductSerializer(product_queryset().get(pk=product.pk), context={"request": request}).data)
 
 
-class BackofficeProductImageAPI(APIView):
-    permission_classes = [IsAdminRole]
+class BackofficeProductImageAPI(BackofficeAPIView):
 
     @transaction.atomic
     def post(self, request, pk):
@@ -160,8 +165,7 @@ class BackofficeProductImageAPI(APIView):
         return Response(AdminProductSerializer(product_queryset().get(pk=product.pk), context={"request": request}).data, status=status.HTTP_201_CREATED)
 
 
-class BackofficeProductImageDetailAPI(APIView):
-    permission_classes = [IsAdminRole]
+class BackofficeProductImageDetailAPI(BackofficeAPIView):
 
     @transaction.atomic
     def delete(self, request, pk, image_id):
@@ -177,8 +181,7 @@ class BackofficeProductImageDetailAPI(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class BackofficeCategoriesAPI(APIView):
-    permission_classes = [IsAdminRole]
+class BackofficeCategoriesAPI(BackofficeAPIView):
 
     def get(self, request):
         return Response(CategorySerializer(Category.objects.order_by("name"), many=True).data)
@@ -194,8 +197,7 @@ class StockPagination(BackofficePagination):
     page_size = 100
 
 
-class BackofficeStockAPI(APIView):
-    permission_classes = [IsAdminRole]
+class BackofficeStockAPI(BackofficeAPIView):
     pagination_class = StockPagination
 
     def get(self, request):
@@ -228,8 +230,7 @@ class BackofficeStockAPI(APIView):
         return paginator.get_paginated_response(StockVariantSerializer(page, many=True).data)
 
 
-class BackofficeStockAdjustAPI(APIView):
-    permission_classes = [IsAdminRole]
+class BackofficeStockAdjustAPI(BackofficeAPIView):
 
     def post(self, request, variant_id):
         variant = get_object_or_404(ProductVariant, pk=variant_id)
@@ -241,8 +242,7 @@ class BackofficeStockAdjustAPI(APIView):
         return Response(data)
 
 
-class BackofficeStockHistoryAPI(APIView):
-    permission_classes = [IsAdminRole]
+class BackofficeStockHistoryAPI(BackofficeAPIView):
     pagination_class = BackofficePagination
 
     def get(self, request):

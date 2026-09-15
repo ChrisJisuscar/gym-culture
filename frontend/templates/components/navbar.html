@@ -9,7 +9,7 @@
       <i></i>
     </button>
     <div class="desktop-nav">
-      <a href="{% url 'home' %}#culture">
+      <a href="{% url 'home' %}#home">
         <svg aria-hidden="true" viewBox="0 0 24 24">
           <path d="M6 7h12l1 13H5L6 7Zm3 0a3 3 0 0 1 6 0" />
         </svg>
@@ -21,7 +21,7 @@
         </svg>
         PERSONALIZAR
       </a>
-      <a href="{% url 'home' %}#culture">CULTURAS</a>
+      <a href="{% url 'create-tshirt' %}#culturas">CULTURAS</a>
     </div>
     <div class="nav-actions">
       <a
@@ -95,9 +95,9 @@
     </div>
   </nav>
   <div class="mobile-menu" id="mobile-menu">
-    <a href="{% url 'home' %}#culture">Tienda</a>
+    <a href="{% url 'home' %}#home">Tienda</a>
     <a href="{% url 'create-tshirt' %}">Personalizar</a>
-    <a href="{% url 'home' %}#culture">Culturas</a>
+    <a href="{% url 'create-tshirt' %}#culturas">Culturas</a>
     <a href="{% url 'cart' %}">Carrito</a>
     <a id="mobile-auth" href="{% url 'login_page' %}">Login</a>
     <div id="mobile-profile" class="mobile-profile" hidden>

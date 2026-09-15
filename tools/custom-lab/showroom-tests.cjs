@@ -1,0 +1,194 @@
+const assert = require('node:assert/strict');
+const { chromium } = require('../../.venv/custom-lab-tools/node_modules/playwright');
+const sessions = require('./session-fixture.cjs');
+const base = process.env.LAB_URL || 'http://127.0.0.1:8765';
+(async () => {
+  const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true, args: ['--enable-unsafe-swiftshader'] });
+  const fixture = sessions.create();
+  let createdId, page;
+  try {
+    page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
+    const errors = []; page.on('pageerror', error => { errors.push(error.message); console.log('PAGE', error.message); });
+    await page.route('**/js/showroom-orbit.js', async route => {
+      const response = await route.fetch();
+      await route.fulfill({ response, body: (await response.text()).replace('this.angle = Math.PI / 2;', 'window.__orbit = this; this.angle = Math.PI / 2;') });
+    });
+    await page.route('**/js/customizer-3d.js', async route => {
+      const response = await route.fetch(); const source = (await response.text()).replaceAll('\r\n', '\n');
+      await route.fulfill({ response, body: source.replace('  return {\n    init, dispose', '  window.__engine = () => ({ scene, renderer, camera, controls, preview, editorGroup, garment, designManager, frameSubscribers });\n  return {\n    init, dispose') });
+    });
+    await page.addInitScript(() => {
+      const request = requestAnimationFrame.bind(window), cancel = cancelAnimationFrame.bind(window);
+      window.__frames = new Set();
+      window.requestAnimationFrame = callback => { const id = request(time => { __frames.delete(id); callback(time); }); __frames.add(id); return id; };
+      window.cancelAnimationFrame = id => { __frames.delete(id); cancel(id); };
+    });
+    await page.goto(`${base}/crear-mi-remera/?culture=urban`);
+    await page.waitForFunction(() => window.GymCulture3D?.isReady());
+    assert.deepEqual(await page.locator('.culture-chip-name').allTextContents(), ['GYMRAT', 'ANIME', 'MEMES', 'URBANO']);
+    assert.equal(await page.locator('.culture-bar.panel, .culture-bar-head, .culture-chip-tag').count(), 0);
+    assert.equal(await page.getByText('THE CULTURE SHOWROOM', { exact: false }).count(), 0);
+    await page.locator('.culture-bar').screenshot({ path: 'tools/custom-lab/culture-selector.png' });
+    await page.evaluate(() => { window.__identity = { ...__engine() }; });
+    await page.locator('#add-3d-text').click();
+    const canvas = page.locator('#customizer-3d-container canvas');
+    const box = await canvas.boundingBox(); await canvas.click({ position: { x: box.width / 2, y: box.height * .46 } });
+    const draft = await page.evaluate(() => JSON.stringify(GymCulture3D.getCustomizationState()));
+    await page.locator('#recommendation-viewer').scrollIntoViewIfNeeded();
+    const ready = () => page.waitForFunction(() => !document.querySelector('#use-recommendation').disabled && GymCulture3D.isPreviewActive());
+    await ready();
+    assert.equal(await page.locator('canvas').count(), 1);
+    assert.equal(await page.evaluate(() => __frames.size), 1);
+    assert.equal(await page.evaluate(() => __engine().scene === __identity.scene && __engine().renderer === __identity.renderer && __engine().controls === __identity.controls), true);
+    assert.equal(await page.evaluate(() => JSON.stringify(GymCulture3D.getCustomizationState())), draft);
+    const firstTitle = await page.locator('#recommendation-title').textContent();
+    const angleBefore = await page.evaluate(() => __engine().camera.position.toArray());
+    const viewer = page.locator('#recommendation-viewer canvas');
+    const rect = await viewer.boundingBox();
+    await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2); await page.mouse.down(); await page.mouse.move(rect.x + rect.width * .85, rect.y + rect.height / 2, { steps: 8 }); await page.mouse.up();
+    await page.waitForTimeout(200);
+    assert.notDeepEqual(await page.evaluate(() => __engine().camera.position.toArray()), angleBefore);
+    assert.equal(await page.evaluate(() => JSON.stringify(GymCulture3D.getCustomizationState())), draft);
+    const beforeOrbit = await page.locator('.orbit-preview').first().getAttribute('style');
+    await page.waitForTimeout(300);
+    assert.notEqual(await page.locator('.orbit-preview').first().getAttribute('style'), beforeOrbit);
+    const cycle = await page.evaluate(() => {
+      const tick = [...__engine().frameSubscribers][0];
+      __orbit.lastInteraction = -10000; __orbit.velocity = 0; __orbit.visible = true;
+      const angle = __orbit.angle;
+      for (let frame = 0; frame < 600; frame++) tick(performance.now() + frame * 50, .05);
+      return __orbit.angle - angle;
+    });
+    assert.ok(Math.abs(cycle - Math.PI * 2) < .001, 'One continuous revolution per 30 seconds');
+    const dragResult = await page.evaluate(() => {
+      const tick = [...__engine().frameSubscribers][0], stage = document.querySelector('#showroom-stage');
+      stage.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 90, clientX: 10 }));
+      const angle = __orbit.angle; tick(performance.now(), .05);
+      const paused = angle === __orbit.angle;
+      window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 90 }));
+      tick(performance.now() + 4000, .05);
+      return { paused, released: !__orbit.drag, resumed: __orbit.angle > angle };
+    });
+    assert.deepEqual(dragResult, { paused: true, released: true, resumed: true });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.locator('[data-showroom-next]').click(); await ready();
+    assert.notEqual(await page.locator('#recommendation-title').textContent(), firstTitle);
+    await page.locator('[data-showroom-prev]').click(); await ready();
+    assert.equal(await page.locator('#recommendation-title').textContent(), firstTitle);
+    assert.ok((await page.locator('.orbit-preview').first().boundingBox()).width > 200);
+    const newName = await page.locator('.orbit-preview span').first().textContent();
+    await page.locator('.orbit-preview:visible').first().click({ force: true }); await ready();
+    assert.equal(await page.locator('#recommendation-title').textContent(), newName);
+    assert.ok((await page.locator('.orbit-preview span').allTextContents()).includes(firstTitle));
+    const selectedState = await page.evaluate(() => JSON.parse(JSON.stringify(__engine().preview.manager.designs)));
+    await page.locator('#use-recommendation').click();
+    await page.waitForFunction(() => !GymCulture3D.isPreviewActive() && GymCulture3D.isReady());
+    assert.equal(await page.evaluate(() => GymCultureCustomizer.state.designs.length), selectedState.length);
+    const current = await page.evaluate(() => GymCulture3D.getCustomizationState());
+    for (let i = 0; i < selectedState.length; i++) {
+      assert.deepEqual(current.designs[i].position, selectedState[i].position);
+      if (current.designs[i].type === 'image') { assert.ok(current.designs[i].source.dataUrl.startsWith('data:image/')); assert.equal(current.designs[i].assetId, undefined); }
+    }
+    console.log('PASS one renderer/scene/controls/RAF; rotation; orbit; swapping previews; unsaved draft preserved; CTA imports editable assets');
+    await page.locator('[data-culture="anime"]').click();
+    await page.locator('[data-culture="urban"]').click();
+    await page.locator('#recommendation-viewer').scrollIntoViewIfNeeded(); await ready();
+    await page.waitForFunction(() => document.querySelector('#recommendation-details').textContent.includes('URBANO'));
+    for (const type of ['oversized', 'hoodie', 'tshirt']) {
+      page.once('dialog', dialog => dialog.accept());
+      await page.locator(`[data-garment="${type}"]`).click();
+      await page.waitForFunction(type => GymCultureCustomizer.state.garmentType === type && GymCulture3D.isReady(), type);
+      await page.locator('#recommendation-viewer').scrollIntoViewIfNeeded(); await ready();
+      await page.waitForFunction(type => __engine().preview.type === type, type);
+      if (type === 'hoodie') await page.locator('#recommendations-showroom').screenshot({ path: 'tools/custom-lab/showroom-hoodie.png' });
+      assert.equal(await page.evaluate(() => __engine().scene === __identity.scene && __engine().renderer === __identity.renderer), true);
+    }
+    for (let i = 0; i < 5; i++) { await page.locator('.orbit-preview:visible').first().click({ force: true }); await ready(); }
+    assert.ok(await page.evaluate(() => __engine().renderer.info.memory.textures < 10));
+    assert.equal(await page.evaluate(() => __frames.size), 1);
+    await page.addStyleTag({ content: '.nav-shell { visibility: hidden !important; }' });
+    await page.locator('#recommendations-showroom').screenshot({ path: 'tools/custom-lab/showroom-desktop.png' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('#recommendation-viewer').scrollIntoViewIfNeeded(); await ready();
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    assert.ok((await page.locator('.orbit-preview').first().boundingBox()).width >= 128);
+    await page.locator('.culture-bar').screenshot({ path: 'tools/custom-lab/culture-selector-mobile.png' });
+    await page.locator('#recommendation-viewer').scrollIntoViewIfNeeded(); await ready();
+    const still = await page.locator('.orbit-preview').first().getAttribute('style'); await page.waitForTimeout(150);
+    assert.notEqual(await page.locator('.orbit-preview').first().getAttribute('style'), still);
+    const previewBox = await page.locator('.orbit-preview').first().boundingBox();
+    await page.mouse.move(previewBox.x + 20, previewBox.y + 20); await page.mouse.down(); await page.mouse.move(previewBox.x + 130, previewBox.y + 20, { steps: 10 }); await page.mouse.up();
+    assert.notEqual(await page.locator('.orbit-preview').first().getAttribute('style'), still);
+    const touchPreview = page.locator('.orbit-preview:visible').first();
+    await page.locator('#showroom-track').evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    const touchBox = await touchPreview.boundingBox(), touchBefore = await page.evaluate(() => __orbit.angle);
+    const touch = await page.context().newCDPSession(page);
+    const x = touchBox.x + touchBox.width / 2, y = touchBox.y + touchBox.height / 2;
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + 45, y }] });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    assert.notEqual(await page.evaluate(() => __orbit.angle), touchBefore);
+    assert.equal(await page.evaluate(() => __orbit.drag), null);
+    await touch.detach();
+    await page.locator('#recommendations-showroom').screenshot({ path: 'tools/custom-lab/showroom-mobile.png' });
+    await page.route('**/api/design-recommendations/?**', route => route.fulfill({ json: { count: 0, results: [] } }));
+    await page.locator('[data-culture="memes"]').click();
+    await page.waitForSelector('#showroom-empty:visible');
+    assert.equal(await page.locator('#recommendation-summary').isVisible(), false);
+    await page.locator('#recommendations-showroom').screenshot({ path: 'tools/custom-lab/showroom-empty.png' });
+    await page.unroute('**/api/design-recommendations/?**');
+    console.log('PASS culture/garment filters, repeated swaps, bounded memory, mobile drag, reduced motion and empty state');
+
+    await sessions.login(page, fixture, base);
+    page.on('dialog', dialog => dialog.accept());
+    await page.setViewportSize({ width: 1440, height: 1100 });
+    await page.goto(`${base}/backoffice/recommendations/new/`);
+    await page.waitForFunction(() => !document.querySelector('#save-recommendation').disabled);
+    assert.equal(await page.locator('#add-cart').count(), 0);
+    await page.locator('#recommendation-editor-meta [name="name"]').fill('Browser state integration');
+    await page.locator('[data-garment="hoodie"]').click();
+    await page.waitForFunction(() => GymCulture3D.isReady() && GymCultureCustomizer.state.garmentType === 'hoodie');
+    await page.locator('[data-hood-state="up"]').click();
+    await page.locator('[data-color="Blanco"]').click();
+    await page.locator('[data-size="M"]').click();
+    await page.locator('#new-text').fill('HOODIE TEST'); await page.locator('#add-3d-text').click();
+    const adminCanvas = page.locator('#customizer-3d-container canvas'); const adminBox = await adminCanvas.boundingBox();
+    await adminCanvas.click({ position: { x: adminBox.width / 2, y: adminBox.height * .46 } });
+    await page.locator('#design-scale').fill('1.25'); await page.locator('#design-scale').dispatchEvent('input');
+    await page.locator('#design-upload').setInputFiles('tools/custom-lab/oversized-preview.webp');
+    await page.waitForSelector('#customizer-3d-container.is-placing');
+    await adminCanvas.click({ position: { x: adminBox.width / 2, y: adminBox.height * .58 } });
+    const saveResponse = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/api/backoffice/recommendations/'));
+    await page.locator('#save-recommendation').click();
+    const saved = await saveResponse; assert.equal(saved.status(), 201, await saved.text()); const item = await saved.json(); createdId = item.id;
+    await page.waitForFunction(() => document.querySelector('#recommendation-editor-feedback').textContent.startsWith('Recomendación guardada'));
+    assert.equal(item.customization_state.garment.hoodState, 'up'); assert.equal(item.customization_state.garment.size, 'M');
+    assert.ok(item.preview_url.endsWith('.webp'));
+    await page.reload(); await page.waitForFunction(() => !document.querySelector('#save-recommendation').disabled);
+    const restored = await page.evaluate(() => GymCulture3D.getCustomizationState());
+    assert.equal(restored.garment.hoodState, 'up'); assert.equal(restored.garment.color, 'Blanco'); assert.equal(restored.garment.size, 'M');
+    assert.equal(restored.designs[0].text, 'HOODIE TEST'); assert.equal(restored.designs[0].scale, 1.25);
+    assert.equal(restored.designs[1].type, 'image'); assert.ok(restored.designs[1].assetUrl.includes('/layers/'));
+    await page.locator('[data-hood-state="down"]').click();
+    await page.locator('#recommendation-editor-meta [name="name"]').fill('Browser edited state');
+    const updateResponse = page.waitForResponse(response => response.request().method() === 'PATCH' && response.url().endsWith(`/recommendations/${createdId}/`));
+    await page.locator('#save-recommendation').click(); const updated = await updateResponse; assert.equal(updated.status(), 200); const edited = await updated.json();
+    assert.equal(edited.id, item.id); assert.equal(edited.customization_state.garment.hoodState, 'down'); assert.notEqual(edited.preview_url, item.preview_url);
+    await page.screenshot({ path: 'tools/custom-lab/showroom-backoffice.png', fullPage: true });
+    await page.goto(`${base}/backoffice/recommendations/`);
+    await page.locator(`[data-toggle-recommendation="${createdId}"]`).click();
+    await page.waitForFunction(id => document.querySelector(`[data-toggle-recommendation="${id}"]`)?.dataset.active === 'false', createdId);
+    const publicResult = await page.evaluate(async () => (await fetch('/api/design-recommendations/?culture=gymrat&garment=hoodie')).json());
+    assert.ok(!publicResult.results.some(item => item.id === createdId));
+    console.log('PASS admin uses same editor, real create/edit, hood up/down, colors/sizes/text transforms restored, automatic WebP, same record ID');
+    assert.deepEqual(errors, []);
+    console.log('PASS no uncaught JavaScript errors');
+  } finally {
+    if (createdId) {
+      const response = await page.evaluate(async id => (await backofficeRequest(`/api/backoffice/recommendations/${id}/`, { method: 'DELETE' })).status, createdId);
+      assert.equal(response, 204);
+    }
+    await browser.close();
+    sessions.remove(fixture);
+  }
+})().catch(error => { console.error(error); process.exitCode = 1; });

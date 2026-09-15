@@ -1,3 +1,4 @@
+from users.backoffice import BackofficeAPIView
 import logging
 from datetime import date
 
@@ -14,7 +15,6 @@ from rest_framework.views import APIView
 from rest_framework.exceptions import APIException
 
 from customizations.models import CustomizationAsset
-from users.permissions import IsAdminRole
 from payments.serializers import PaymentSerializer
 from payments.services import PaymentService
 
@@ -117,8 +117,7 @@ class BackofficePagination(PageNumberPagination):
     max_page_size = 100
 
 
-class BackofficeDashboardAPI(APIView):
-    permission_classes = [IsAdminRole]
+class BackofficeDashboardAPI(BackofficeAPIView):
 
     def get(self, request):
         from .dashboard import dashboard_data
@@ -128,8 +127,7 @@ class BackofficeDashboardAPI(APIView):
         return Response(dashboard_data(period))
 
 
-class BackofficeOrdersAPI(APIView):
-    permission_classes = [IsAdminRole]
+class BackofficeOrdersAPI(BackofficeAPIView):
     pagination_class = BackofficePagination
 
     def get(self, request):
@@ -169,8 +167,7 @@ class BackofficeOrdersAPI(APIView):
         return paginator.get_paginated_response(serializer.data)
 
 
-class BackofficeOrderDetailAPI(APIView):
-    permission_classes = [IsAdminRole]
+class BackofficeOrderDetailAPI(BackofficeAPIView):
 
     @transaction.atomic
     def patch(self, request, pk):
@@ -208,8 +205,7 @@ class BackofficeOrderDetailAPI(APIView):
         return Response(data)
 
 
-class BackofficeOrderStatusAPI(APIView):
-    permission_classes = [IsAdminRole]
+class BackofficeOrderStatusAPI(BackofficeAPIView):
 
     def patch(self, request, pk):
         order = get_object_or_404(Order, pk=pk)
@@ -219,8 +215,7 @@ class BackofficeOrderStatusAPI(APIView):
         return Response(AdminOrderSerializer(order_detail_queryset().get(pk=order.pk), context={"request": request}).data)
 
 
-class BackofficeProductionAPI(APIView):
-    permission_classes = [IsAdminRole]
+class BackofficeProductionAPI(BackofficeAPIView):
 
     def get(self, request):
         orders = order_detail_queryset().filter(
@@ -231,8 +226,7 @@ class BackofficeProductionAPI(APIView):
         return Response(AdminOrderSerializer(orders, many=True, context={"request": request}).data)
 
 
-class BackofficeAssetDownloadAPI(APIView):
-    permission_classes = [IsAdminRole]
+class BackofficeAssetDownloadAPI(BackofficeAPIView):
 
     def get(self, request, asset_id):
         asset = get_object_or_404(

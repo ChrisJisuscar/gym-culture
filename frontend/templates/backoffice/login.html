@@ -1,0 +1,10 @@
+{% extends 'backoffice/auth_base.html' %}
+{% block auth_content %}
+<p class="eyebrow">BACKOFFICE</p><h1>Entrá a tu espacio.</h1><p class="bo-auth-intro">Gestioná tu catálogo, pedidos y recomendaciones.</p>
+<form method="post" action="{% url 'backoffice-login' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
+  {% if form.errors %}<div class="bo-auth-error" role="alert">{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}{% if not form.non_field_errors %}<p>Completá tu usuario y contraseña.</p>{% endif %}</div>{% endif %}
+  <label for="id_username">Usuario o correo</label>{{ form.username }}
+  <label for="id_password">Contraseña</label>{{ form.password }}
+  <button class="bo-button bo-primary" type="submit">INICIAR SESIÓN <span aria-hidden="true">↗</span></button>
+</form><a class="bo-auth-return" href="{% url 'home' %}">← Volver a GYM CULTURE</a>
+{% endblock %}

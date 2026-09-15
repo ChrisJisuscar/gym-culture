@@ -18,6 +18,8 @@
         assets.set(source.dataUrl, { key: assetKey, source });
       }
       design[keyField] = assetKey;
+      delete design[sourceField === 'source' ? 'assetId' : 'originalAssetId'];
+      delete design[sourceField === 'source' ? 'assetUrl' : 'originalAssetUrl'];
       delete design[sourceField];
       }
     }
@@ -37,6 +39,7 @@
   };
 
   const requestJson = async (url, options = {}) => {
+    if (document.querySelector('[data-customizer-mode="recommendation-admin"]')) return window.GymCultureBackoffice.requestJson(url, options);
     let response;
     try {
       response = await window.GymCultureAuth.request(url, options);
@@ -59,5 +62,25 @@
     create: (form) => requestJson('/api/customizations/', { method: 'POST', body: form }),
     update: (id, form) => requestJson(`/api/customizations/${id}/`, { method: 'PATCH', body: form }),
     get: (id) => requestJson(`/api/customizations/${id}/`),
+    requestJson,
+    // Copy public recommendation assets into the customer's own upload flow.
+    // Recommendation UUIDs must never be submitted as customer-owned assets.
+    editableCopy: async (state) => {
+      const configuration = JSON.parse(JSON.stringify(state));
+      for (const design of configuration.designs) {
+        if (design.type !== 'image') continue;
+        for (const [urlKey, idKey, sourceKey] of [['assetUrl', 'assetId', 'source'], ['originalAssetUrl', 'originalAssetId', 'originalSource']]) {
+          if (!design[urlKey]) continue;
+          const response = await fetch(design[urlKey], { credentials: 'same-origin' });
+          if (!response.ok) throw new Error('No se pudo descargar una imagen de la recomendación.');
+          const blob = await response.blob();
+          if (!['image/png', 'image/jpeg', 'image/webp'].includes(blob.type) || blob.size > 10 * 1024 * 1024) throw new Error('Una imagen de la recomendación no es válida.');
+          const dataUrl = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(blob); });
+          design[sourceKey] = { dataUrl, mimeType: blob.type, size: blob.size, name: 'Diseño recomendado' };
+          delete design[idKey]; delete design[urlKey];
+        }
+      }
+      return configuration;
+    },
   };
 })();

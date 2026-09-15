@@ -1,6 +1,7 @@
 const customizerRoot = document.querySelector('.customizer-layout');
 
 if (customizerRoot) {
+  const adminMode = document.querySelector('[data-customizer-mode]')?.dataset.customizerMode === 'recommendation-admin';
   const products = JSON.parse(document.querySelector('#customizer-products').textContent);
   const selectedProduct = () => products.find((product) => product.id === customizerState.productId && product.garment_type === customizerState.garmentType)
     || products.find((product) => product.garment_type === customizerState.garmentType);
@@ -16,8 +17,8 @@ if (customizerRoot) {
     designs: [],
   };
   const money = (value) => `Gs. ${Math.round(value).toLocaleString('es-PY')}`;
-  const cartButton = document.querySelector('#add-cart');
-  const cartNote = document.querySelector('#cart-note');
+  const cartButton = document.querySelector('#add-cart') || document.createElement('button');
+  const cartNote = document.querySelector('#cart-note') || document.createElement('p');
   const stockNote = document.querySelector('#stock-note');
   const designFeedback = document.querySelector('#design-feedback');
   const selectionPanel = document.querySelector('#selection-panel');
@@ -27,8 +28,11 @@ if (customizerRoot) {
   let restoreFailed = false;
   let removingBackground = false;
   const backgroundButton = document.querySelector('#remove-background');
+  const restoreOriginalButton = document.querySelector('#restore-original');
+  const backgroundDialog = document.querySelector('#background-preview-dialog');
+  const applyBackgroundButton = document.querySelector('#apply-background');
   const garmentOptions = document.querySelectorAll('[data-garment]');
-  let customizationId = new URLSearchParams(window.location.search).get('customization');
+  let customizationId = adminMode ? null : new URLSearchParams(window.location.search).get('customization');
 
   // Configuración central de colores (solo label/hex/orden visual). La fuente de verdad
   // para "existe o no" una combinación sigue siendo ProductVariant del backend.
@@ -53,6 +57,7 @@ if (customizerRoot) {
     const container = template.parentElement;
     const originals = [...container.querySelectorAll(selector)];
     const unique = new Map();
+    if (adminMode) originals.forEach(button => unique.set(String(button.dataset[field]).toLowerCase(), button.dataset[field]));
     if (field === 'color') {
       for (const value of paletteColors.values()) unique.set(String(value).toLowerCase(), value);
     } else {
@@ -89,7 +94,7 @@ if (customizerRoot) {
     const variants = currentVariants();
     const hasVariants = variants.length > 0;
     document.querySelectorAll('.color-option').forEach((button) => {
-      const exists = variants.some((variant) => normalizeColor(variant.color) === normalizeColor(button.dataset.color));
+      const exists = adminMode || variants.some((variant) => normalizeColor(variant.color) === normalizeColor(button.dataset.color));
       button.hidden = !exists;
       button.classList.toggle('is-selected', normalizeColor(button.dataset.color) === normalizeColor(customizerState.garmentColor));
       button.setAttribute('aria-checked', String(button.classList.contains('is-selected')));
@@ -98,7 +103,7 @@ if (customizerRoot) {
       button.setAttribute('aria-disabled', String(hasVariants && !exists));
     });
     document.querySelectorAll('.size-option').forEach((button) => {
-      const exists = variants.some((variant) => normalizeSize(variant.size) === normalizeSize(button.dataset.size));
+      const exists = adminMode || variants.some((variant) => normalizeSize(variant.size) === normalizeSize(button.dataset.size));
       button.classList.toggle('is-selected', button.dataset.size === customizerState.size);
       button.setAttribute('aria-checked', String(button.classList.contains('is-selected')));
       button.hidden = !exists;
@@ -123,6 +128,7 @@ if (customizerRoot) {
       }
     }
     cartButton.disabled = viewerBusy || saving || restoreFailed || !customizerState.selectedVariant || !product;
+    if (adminMode) { stockNote.hidden = true; if (stockHint) stockHint.hidden = true; }
   };
 
   const syncGarmentControls = () => {
@@ -153,6 +159,7 @@ if (customizerRoot) {
   // activo de ESE garment. Prefiere conservar la selección actual si sigue existiendo y
   // reencauza a la primera variante real del producto cuando no. El stock nunca participa.
   const alignSelectionToProduct = () => {
+    if (adminMode) return;
     const product = selectedProduct();
     const variants = currentVariants();
     if (!product || !variants.length) return;
@@ -194,8 +201,10 @@ if (customizerRoot) {
     document.querySelector('#summary-color').textContent = customizerState.garmentColor;
     document.querySelector('#summary-size').textContent = customizerState.size;
     document.querySelector('#summary-product').textContent = selectedProduct()?.name || 'No disponible';
-    document.querySelector('#base-price').textContent = selectedProduct() ? money(Number(selectedProduct().price)) : '-';
-    document.querySelector('#total-price').textContent = selectedProduct() ? money(Number(selectedProduct().price)) : '-';
+    if (!adminMode) {
+      document.querySelector('#base-price').textContent = selectedProduct() ? money(Number(selectedProduct().price)) : '-';
+      document.querySelector('#total-price').textContent = selectedProduct() ? money(Number(selectedProduct().price)) : '-';
+    }
   };
 
   const showDesignFeedback = (message, isError = false) => {
@@ -207,6 +216,9 @@ if (customizerRoot) {
     selectedDesign = design;
     backgroundButton.hidden = design?.type !== 'image';
     backgroundButton.disabled = removingBackground;
+    backgroundButton.textContent = removingBackground ? 'PROCESANDO...' : design?.backgroundRemoved ? 'REVISAR RECORTE' : 'QUITAR FONDO';
+    restoreOriginalButton.hidden = !design?.backgroundRemoved;
+    restoreOriginalButton.disabled = removingBackground;
     selectionPanel.hidden = !design;
     const designCount = customizerState.designs.length;
     document.querySelector('#summary-design').textContent = designCount ? `${designCount} elemento${designCount === 1 ? '' : 's'}` : 'Lisa';
@@ -232,18 +244,55 @@ if (customizerRoot) {
     removingBackground = true;
     backgroundButton.disabled = true;
     backgroundButton.textContent = 'PROCESANDO...';
-    showDesignFeedback('Identificando el diseño para quitar el fondo…');
+    showDesignFeedback('Procesando… Comprobando que el fondo se pueda quitar de forma segura.');
     try {
-      await window.GymCulture3D.removeBackground();
-      showDesignFeedback('Imagen procesada. Revisá el resultado antes de guardar.');
+      const preview = await window.GymCulture3D.removeBackground();
+      if (!preview) { showDesignFeedback('El diseño cambió. Volvé a seleccionarlo para quitar el fondo.'); return; }
+      document.querySelector('#background-before').src = preview.before;
+      document.querySelector('#background-after').src = preview.after;
+      document.querySelector('#background-restore-original').hidden = !selectedDesign?.backgroundRemoved;
+      applyBackgroundButton.disabled = !!preview.applied;
+      document.querySelector('#background-preview-feedback').textContent = preview.confidenceLevel === 'LOW' ? 'Hicimos un recorte conservador. Puede quedar algo de fondo: revisá los detalles antes de aplicar.' : preview.confidenceLevel === 'MEDIUM' ? 'El fondo tiene variaciones. Revisá los bordes y detalles antes de aplicar.' : '';
+      backgroundDialog.showModal();
+      showDesignFeedback('Revisá el resultado antes de aplicarlo.');
     } catch (error) {
-      console.error('[GYM CULTURE] image_processing_error', error);
-      showDesignFeedback(error.message || 'No pudimos procesar esta imagen. Intentá nuevamente.', true);
+      showDesignFeedback(error.message || 'No pudimos procesar esta imagen. Intentá nuevamente.', error.code !== 'already_transparent');
     } finally {
       removingBackground = false;
-      backgroundButton.disabled = false;
-      backgroundButton.textContent = 'QUITAR FONDO';
+      renderSelection(selectedDesign);
     }
+  });
+
+  backgroundDialog.addEventListener('close', () => {
+    window.GymCulture3D.cancelBackgroundRemoval();
+    document.querySelector('#background-before').removeAttribute('src');
+    document.querySelector('#background-after').removeAttribute('src');
+  });
+  const cancelBackground = () => { backgroundDialog.close(); showDesignFeedback('Se conservó el diseño sin cambios.'); };
+  document.querySelector('#cancel-background').addEventListener('click', cancelBackground);
+  document.querySelector('#background-restore-original').addEventListener('click', () => { backgroundDialog.close(); restoreOriginalButton.click(); });
+  backgroundDialog.addEventListener('cancel', event => {
+    event.preventDefault();
+    if (!document.querySelector('#cancel-background').disabled) cancelBackground();
+  });
+  applyBackgroundButton.addEventListener('click', async () => {
+    applyBackgroundButton.disabled = true;
+    document.querySelector('#cancel-background').disabled = true;
+    try {
+      const applied = await window.GymCulture3D.applyBackgroundRemoval();
+      if (!applied) throw new Error('El diseño cambió. Cancelá y volvé a intentarlo.');
+      backgroundDialog.close();
+      showDesignFeedback('Fondo quitado. Podés restaurar el original cuando quieras.');
+    } catch (error) { document.querySelector('#background-preview-feedback').textContent = error.message; }
+    finally { applyBackgroundButton.disabled = false; document.querySelector('#cancel-background').disabled = false; }
+  });
+  restoreOriginalButton.addEventListener('click', async () => {
+    if (removingBackground) return;
+    removingBackground = true; renderSelection(selectedDesign);
+    try {
+      if (await window.GymCulture3D.restoreOriginal()) showDesignFeedback('Original restaurado. Se conservaron la posición, el tamaño y la rotación.');
+    } catch (error) { showDesignFeedback(error.message, true); }
+    finally { removingBackground = false; renderSelection(selectedDesign); }
   });
 
   document.querySelector('#design-upload').addEventListener('change', async (event) => {
@@ -280,6 +329,7 @@ if (customizerRoot) {
     try {
       window.GymCulture3D.updateSelectedDesign(changes);
     } catch (error) {
+      renderSelection(selectedDesign);
       showDesignFeedback(error.message, true);
     }
   };
@@ -316,6 +366,12 @@ if (customizerRoot) {
   };
 
   document.addEventListener('gymculture:customization-loaded', () => { syncControlsFromState(); syncGarmentControls(); });
+  document.addEventListener('gymculture:recommendation-applied', () => {
+    const design = selectedDesign;
+    syncControlsFromState();
+    syncGarmentControls();
+    renderSelection(design);
+  });
 
   document.querySelectorAll('.color-option').forEach((button) => button.addEventListener('click', () => {
     customizerState.garmentColor = button.dataset.color;

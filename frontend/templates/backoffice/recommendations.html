@@ -1,0 +1,33 @@
+{% extends "backoffice/base.html" %}
+{% load static %}
+{% block extra_scripts %}<script src="{% static 'js/backoffice-recommendations.js' %}" defer></script>{% endblock %}
+{% block title %}Recomendaciones{% endblock %}
+{% block view_name %}recommendations{% endblock %}
+{% block content %}
+  <header class="bo-heading">
+    <div><p class="eyebrow">CUSTOM LAB</p><h1>Recomendaciones</h1></div>
+    <button id="new-recommendation" class="bo-button bo-primary" type="button">NUEVA RECOMENDACIÓN</button>
+  </header>
+  <form id="recommendation-filters" class="bo-filters">
+    <label class="sr-only" for="recommendation-search">Buscar recomendación</label>
+    <input id="recommendation-search" name="search" placeholder="Nombre de la recomendación">
+    <label class="sr-only" for="recommendation-culture-filter">Cultura</label>
+    <select id="recommendation-culture-filter" name="culture" aria-label="Cultura"><option value="">Todas las culturas</option></select>
+    <label class="sr-only" for="recommendation-garment-filter">Prenda</label>
+    <select id="recommendation-garment-filter" name="garment_type" aria-label="Prenda">
+      <option value="">Todas las prendas</option>
+      <option value="tshirt">Remera</option>
+      <option value="oversized">Oversize</option>
+      <option value="hoodie">Hoodie</option>
+    </select>
+    <label class="sr-only" for="recommendation-active-filter">Estado</label>
+    <select id="recommendation-active-filter" name="active" aria-label="Estado">
+      <option value="">Activas e inactivas</option>
+      <option value="true">Activas</option>
+      <option value="false">Inactivas</option>
+    </select>
+    <button class="bo-button" type="submit">FILTRAR</button>
+  </form>
+  <p id="bo-feedback" class="bo-feedback" role="status" aria-live="polite">Cargando recomendaciones…</p>
+  <section class="bo-panel"><div id="bo-recommendations"></div></section>
+{% endblock %}

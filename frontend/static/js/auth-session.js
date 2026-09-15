@@ -31,10 +31,14 @@
     error.code = 'SESSION_EXPIRED';
     return error;
   };
-  const loginUrl = () => `/login/?next=${encodeURIComponent(
+const loginUrl = () => `/login/?next=${encodeURIComponent(
     window.location.pathname + window.location.search + window.location.hash
   )}`;
   const redirectToLogin = () => window.location.assign(loginUrl());
+  const getCsrfToken = () => {
+    const match = document.cookie.match(/(?:^|; )csrftoken=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : null;
+  };
 
   const refreshAccess = () => {
     if (refreshPromise) return refreshPromise;
@@ -54,11 +58,16 @@
     return refreshPromise;
   };
 
-  const request = async (url, options = {}, retried = false) => {
+const request = async (url, options = {}, retried = false) => {
     const access = localStorage.getItem(keys.access);
+    const method = String(options.method || 'GET').toUpperCase();
     const headers = new Headers(options.headers || {});
     if (access) headers.set('Authorization', `Bearer ${access}`);
-    const response = await fetch(url, { ...options, headers });
+    if (!['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method)) {
+      const csrf = getCsrfToken();
+      if (csrf) headers.set('X-CSRFToken', csrf);
+    }
+    const response = await fetch(url, { ...options, headers, credentials: 'same-origin' });
     if (response.status !== 401) return response;
     if (!retried && localStorage.getItem(keys.refresh)) {
       try {
@@ -128,13 +137,14 @@
     } catch { clear(); }
     updateNavbar();
   };
-  window.GymCultureAuth = {
+window.GymCultureAuth = {
     clear,
     hydrate,
     logout,
     request,
     save,
     updateNavbar,
+    getCsrfToken,
     isSessionError: (error) => error?.code === 'SESSION_EXPIRED',
     loginUrl,
     redirectToLogin,

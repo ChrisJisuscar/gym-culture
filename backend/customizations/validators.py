@@ -59,7 +59,7 @@ def _vector(value, label):
         _number(value[axis], -1000, 1000, f"{label}.{axis}")
 
 
-def validate_configuration(value, variant, available_asset_ids=None, allow_asset_keys=False):
+def validate_configuration(value, variant=None, available_asset_ids=None, allow_asset_keys=False):
     if not isinstance(value, dict) or value.get("version") != CUSTOMIZATION_SCHEMA_VERSION:
         raise serializers.ValidationError({"configuration": "La versión de configuración no es válida."})
     if len(json.dumps(value, separators=(",", ":")).encode("utf-8")) > MAX_CONFIGURATION_SIZE:
@@ -69,10 +69,15 @@ def validate_configuration(value, variant, available_asset_ids=None, allow_asset
         raise serializers.ValidationError({"configuration": "La prenda no es válida."})
     if garment["type"] == "hoodie" and garment.get("hoodState", "down") not in ("down", "up"):
         raise serializers.ValidationError({"configuration": "Estado de capucha invalido."})
-    if garment["type"] != variant.product.garment_type or garment.get("productId", variant.product_id) != variant.product_id:
+    if variant is not None and (garment["type"] != variant.product.garment_type or garment.get("productId", variant.product_id) != variant.product_id):
         raise serializers.ValidationError({"configuration": "La prenda no coincide con el producto."})
-    if garment.get("variantId") != variant.id or normalize_size(garment.get("size")) != normalize_size(variant.size) or normalize_color(garment.get("color", "")) != normalize_color(variant.color):
+    if variant is not None and (garment.get("variantId") != variant.id or normalize_size(garment.get("size")) != normalize_size(variant.size) or normalize_color(garment.get("color", "")) != normalize_color(variant.color)):
         raise serializers.ValidationError({"configuration": "La configuración no coincide con la variante."})
+    if not isinstance(garment.get("size"), str) or not 1 <= len(garment["size"]) <= 16 or not isinstance(garment.get("color"), str) or not 1 <= len(garment["color"]) <= 60:
+        raise serializers.ValidationError({"configuration": "Color o talla inválidos."})
+    for key in ("productId", "variantId"):
+        if garment.get(key) is not None and (isinstance(garment[key], bool) or not isinstance(garment[key], int) or garment[key] <= 0):
+            raise serializers.ValidationError({"configuration": "Referencia al catálogo inválida."})
     if not HEX_COLOR.fullmatch(str(garment.get("colorHex", ""))):
         raise serializers.ValidationError({"configuration": "El color de la prenda no es válido."})
     designs = value.get("designs")

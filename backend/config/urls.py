@@ -17,6 +17,7 @@ from .views import (
     backoffice_stock,
     backoffice_customers,
     backoffice_customer_detail,
+    backoffice_recommendations,
     cart,
     checkout,
     create_tshirt,
@@ -28,6 +29,7 @@ from .views import (
     register,
 )
 from users.serializers import EmailTokenObtainPairSerializer
+from users.backoffice import backoffice_login, backoffice_logout
 
 
 class EmailTokenObtainPairView(TokenObtainPairView):
@@ -44,6 +46,8 @@ urlpatterns = [
     path("pedido/<str:order_number>/confirmacion/", order_confirmation, name="order-confirmation"),
     path("mis-pedidos/", my_orders, name="my-orders"),
     path("mis-pedidos/<int:pk>/", my_order_detail, name="my-order-detail"),
+    path("backoffice/login/", backoffice_login, name="backoffice-login"),
+    path("backoffice/logout/", backoffice_logout, name="backoffice-logout"),
     path("backoffice/", backoffice_dashboard, name="backoffice-dashboard-page"),
     path("backoffice/orders/", backoffice_orders, name="backoffice-orders-page"),
     path("backoffice/orders/<int:pk>/", backoffice_order_detail, name="backoffice-order-detail-page"),
@@ -54,6 +58,9 @@ urlpatterns = [
     path("backoffice/stock/", backoffice_stock, name="backoffice-stock-page"),
     path("backoffice/customers/", backoffice_customers, name="backoffice-customers-page"),
     path("backoffice/customers/<int:pk>/", backoffice_customer_detail, name="backoffice-customer-detail-page"),
+    path("backoffice/recommendations/", backoffice_recommendations, name="backoffice-recommendations-page"),
+    path("backoffice/recommendations/new/", create_tshirt, {"recommendation_admin": True}, name="backoffice-recommendation-new"),
+    path("backoffice/recommendations/<int:recommendation_id>/edit/", create_tshirt, {"recommendation_admin": True}, name="backoffice-recommendation-editor"),
     path("crear-mi-remera/", create_tshirt, name="create-tshirt"),
     path("api/", api_home, name="api-home"),
     path("admin/", admin.site.urls),
@@ -62,6 +69,7 @@ urlpatterns = [
     path("api/", include("users.urls")),
     path("api/", include("cart.urls")),
     path("api/", include("customizations.urls")),
+    path("api/", include("recommendations.urls")),
     path("api/", include("payments.urls")),
     path(
         "api/auth/login/", EmailTokenObtainPairView.as_view(), name="token_obtain_pair"

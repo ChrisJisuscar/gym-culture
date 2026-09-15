@@ -1,17 +1,18 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs/promises');
+const sessions=require('./session-fixture.cjs');
 const {chromium}=require('../../.venv/custom-lab-tools/node_modules/playwright');
 (async()=>{
-  const {token}=JSON.parse(await fs.readFile('.venv/backoffice-browser-token.json','utf8'));
+  const fixture=sessions.create();
   const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
   try {
     const page=await browser.newPage({viewport:{width:1440,height:1100}});
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
-    await page.addInitScript(token=>localStorage.setItem('gc_access_token',token),token);
+    await sessions.login(page,fixture,'http://127.0.0.1:8767');
     await fs.mkdir('.venv/backoffice-refinement',{recursive:true});
     const ready=async()=>{await page.waitForSelector('#bo-metrics[aria-busy="false"]');await page.waitForTimeout(400);assert.equal(await page.locator('#bo-feedback.is-error').count(),0);};
     await page.goto('http://127.0.0.1:8767/backoffice/');await ready();
-    const real=await page.evaluate(async()=> (await GymCultureAuth.request('/api/backoffice/dashboard/?period=90')).json());
+    const real=await page.evaluate(async()=> (await backofficeRequest('/api/backoffice/dashboard/?period=90')).json());
     const originalId=await page.evaluate(()=>Chart.getChart(document.querySelector('#chart-period canvas')).id);
     for(const period of ['7','90','30','12m']) {
       const response=page.waitForResponse(r=>r.url().includes(`dashboard/?period=${period}`));
@@ -67,5 +68,5 @@ const {chromium}=require('../../.venv/custom-lab-tools/node_modules/playwright')
     assert.equal(await page.evaluate(()=>Object.keys(Chart.instances).length),4);
     assert.deepEqual(errors,[]);
     console.log('PASS real 7/30/90/12m, chart reuse, donut, thin bars, many/empty/error recovery, tooltip, desktop/tablet/mobile 320px and no JS errors');
-  } finally {await browser.close();}
+  } finally {await browser.close();sessions.remove(fixture);}
 })().catch(e=>{console.error(e);process.exitCode=1;});

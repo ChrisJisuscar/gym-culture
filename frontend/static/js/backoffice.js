@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   const root = document.querySelector('[data-backoffice-view]');
   if (!root) return;
-  const auth = window.GymCultureAuth;
+  const auth = window.GymCultureBackoffice;
   const feedback = document.querySelector('#bo-feedback');
   const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
   const money = (value) => `₲ ${new Intl.NumberFormat('es-PY', { maximumFractionDigits: 0 }).format(Number(value || 0))}`;
@@ -270,6 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (error) { fail(error); }
       finally { button.disabled = false; button.textContent = 'GUARDAR PRODUCTO'; }
     }
+
     if (event.target.id === 'stock-adjust-form') {
       event.preventDefault();
       if (event.submitter?.value === 'cancel') { document.querySelector('#stock-dialog').close(); return; }
@@ -358,4 +359,5 @@ document.addEventListener('DOMContentLoaded', () => {
   if (root.dataset.backofficeView === 'stock') { loadStock(); loadStockHistory(); }
   if (root.dataset.backofficeView === 'customers') loadCustomers();
   if (root.dataset.backofficeView === 'customer-detail') loadCustomerDetail();
+  if (root.dataset.backofficeView === 'recommendations') window.GymCultureRecommendations({api, escapeHtml, feedback, fail});
 });

@@ -34,12 +34,24 @@ const readImage = (file) => new Promise((resolve, reject) => {
         reject(new Error('La imagen no puede superar 8192 px por lado.'));
         return;
       }
-      resolve({ image, dataUrl: reader.result, aspectRatio: image.naturalWidth / image.naturalHeight });
+      resolve({ image, dataUrl: reader.result, aspectRatio: image.naturalWidth / image.naturalHeight, mimeType: file.type, size: file.size });
     };
     image.src = reader.result;
   };
   reader.readAsDataURL(file);
 });
+
+// Remote recommendations use the same validation and editable representation as uploads.
+const readRemoteImage = async (url) => {
+  let response;
+  try {
+    response = await fetch(url, { credentials: 'same-origin' });
+  } catch (error) {
+    throw new Error('No se pudo descargar el diseño recomendado.');
+  }
+  if (!response.ok) throw new Error('No se pudo descargar el diseño recomendado.');
+  return readImage(await response.blob());
+};
 
 const loadTexture = (url) => new Promise((resolve, reject) => {
   new THREE.TextureLoader().load(url, (texture) => {
@@ -76,6 +88,36 @@ export class DesignManager {
     };
   }
 
+  async applyRemoteDesign({ assetUrl, position, normal, mesh, rotation = 0, scale = 1, sourceName = 'Recomendación GYM CULTURE' }) {
+    if (!position || !normal || !mesh) throw new Error('Falta la superficie donde colocar el diseño.');
+    const version = this.resourceVersion;
+    const loaded = await readRemoteImage(assetUrl);
+    if (version !== this.resourceVersion) throw new Error('La prenda cambió mientras se preparaba la recomendación.');
+    const texture = new THREE.Texture(loaded.image);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+    this.clearPending();
+    this.pending = {
+      type: 'image', texture, aspectRatio: loaded.aspectRatio,
+      source: { name: sourceName, mimeType: loaded.mimeType, size: loaded.size, dataUrl: loaded.dataUrl },
+    };
+    const design = this.place({
+      point: toVector(position),
+      normal: toVector(normal),
+      mesh,
+    });
+    try {
+      design.rotation = Math.max(-180, Math.min(180, rotation));
+      design.scale = Math.max(DESIGN_LIMITS.minScale, Math.min(DESIGN_LIMITS.maxScale, scale));
+      this.rebuild(design, mesh);
+      this.notify();
+    } catch (error) {
+      this.removeSelected();
+      throw error;
+    }
+    return design;
+  }
+
   prepareText({ text, fontFamily, color }) {
     this.clearPending();
     const generated = createTextTexture({ text, fontFamily, color });
@@ -108,7 +150,14 @@ export class DesignManager {
     this.designs.push(design);
     this.resources.set(id, { texture: this.pending.texture, mesh: null, sourceMesh: hit.mesh });
     this.pending = null;
-    this.rebuild(design, hit.mesh);
+    try {
+      this.rebuild(design, hit.mesh);
+    } catch (error) {
+      this.resources.get(id).texture.dispose();
+      this.resources.delete(id);
+      this.designs.splice(this.designs.indexOf(design), 1);
+      throw error;
+    }
     this.select(id);
     return design;
   }
@@ -162,6 +211,7 @@ export class DesignManager {
   }
 
   select(id) {
+    if (this.selectedId !== id) this.cancelBackgroundRemoval();
     this.selectedId = this.resources.has(id) ? id : null;
     this.resources.forEach(({ mesh }, resourceId) => {
       if (mesh) mesh.material.opacity = resourceId === this.selectedId ? 0.82 : 1;
@@ -174,16 +224,33 @@ export class DesignManager {
   async removeBackground() {
     const design = this.selected();
     if (!design || design.type !== 'image' || this.processing) return;
+    if (design.backgroundRemoved) {
+      return { before: design.originalSource?.dataUrl || design.originalAssetUrl, after: design.source?.dataUrl || design.assetUrl, applied: true };
+    }
     const resource = this.resources.get(design.id);
     const version = this.resourceVersion;
     const operation = {};
     this.processing = operation;
     try {
       const source = await new BackgroundRemovalService().remove(design.source?.dataUrl || design.assetUrl);
+      if (version !== this.resourceVersion || this.resources.get(design.id) !== resource || this.selectedId !== design.id) return;
+      this.backgroundPreview = { design, resource, version, source };
+      return { before: design.source?.dataUrl || design.assetUrl, after: source.dataUrl, confidenceLevel: source.confidenceLevel };
+    } finally {
+      if (this.processing === operation) this.processing = null;
+    }
+  }
+  cancelBackgroundRemoval() { this.backgroundPreview = null; }
+
+  async applyBackgroundRemoval() {
+    const pending = this.backgroundPreview;
+    if (!pending || this.processing) return false;
+    const { design, resource, version, source } = pending;
+    this.processing = pending;
+    try {
       const texture = await loadTexture(source.dataUrl);
-      if (version !== this.resourceVersion || this.resources.get(design.id) !== resource) {
-        texture.dispose();
-        return;
+      if (this.backgroundPreview !== pending || version !== this.resourceVersion || this.resources.get(design.id) !== resource || this.selectedId !== design.id) {
+        texture.dispose(); return false;
       }
       if (!design.originalSource && !design.originalAssetId) {
         if (design.source) design.originalSource = { ...design.source };
@@ -191,48 +258,67 @@ export class DesignManager {
       }
       design.source = source;
       design.backgroundRemoved = true;
-      delete design.assetId;
-      delete design.assetUrl;
-      const previous = resource.texture;
-      resource.texture = texture;
-      resource.mesh.material.map = texture;
-      resource.mesh.material.needsUpdate = true;
-      previous.dispose();
-      this.notify();
-    } finally {
-      if (this.processing === operation) this.processing = null;
-    }
+      delete design.assetId; delete design.assetUrl;
+      this.replaceTexture(resource, texture);
+      this.cancelBackgroundRemoval(); this.notify();
+      return true;
+    } finally { if (this.processing === pending) this.processing = null; }
+  }
+
+  async restoreOriginal() {
+    const design = this.selected();
+    const url = design?.originalSource?.dataUrl || design?.originalAssetUrl;
+    if (!url || this.processing) return false;
+    const resource = this.resources.get(design.id), version = this.resourceVersion, operation = {};
+    this.processing = operation;
+    try {
+      const texture = await loadTexture(url);
+      if (version !== this.resourceVersion || this.resources.get(design.id) !== resource) { texture.dispose(); return false; }
+      delete design.source; delete design.assetId; delete design.assetUrl;
+      if (design.originalSource) design.source = { ...design.originalSource };
+      else Object.assign(design, { assetId: design.originalAssetId, assetUrl: design.originalAssetUrl });
+      delete design.originalSource; delete design.originalAssetId; delete design.originalAssetUrl;
+      design.backgroundRemoved = false;
+      this.replaceTexture(resource, texture); this.notify();
+      return true;
+    } finally { if (this.processing === operation) this.processing = null; }
+  }
+
+  replaceTexture(resource, texture) {
+    const previous = resource.texture;
+    resource.texture = texture; resource.mesh.material.map = texture;
+    resource.mesh.material.needsUpdate = true; previous.dispose();
   }
   meshes() { return [...this.resources.values()].map((resource) => resource.mesh).filter(Boolean); }
 
   moveSelected(hit) {
-    const design = this.selected();
-    if (!design) return;
-    design.position = vectorData(hit.point);
-    design.normal = vectorData(hit.normal);
-    this.rebuild(design, hit.mesh);
-    this.notify();
+    this.updateSelected({ position: vectorData(hit.point), normal: vectorData(hit.normal) }, hit.mesh);
   }
 
-  updateSelected(changes) {
+  updateSelected(changes, sourceMesh) {
     const design = this.selected();
     if (!design) return;
-    Object.assign(design, changes);
-    if (design.type === 'text' && ['text', 'fontFamily', 'color'].some((key) => key in changes)) {
-      const resource = this.resources.get(design.id);
-      const generated = createTextTexture(design);
-      resource.texture.dispose();
-      resource.texture = generated.texture;
-      resource.mesh.material.map = generated.texture;
-      resource.mesh.material.needsUpdate = true;
-      design.aspectRatio = generated.aspectRatio;
-      design.width = design.height * generated.aspectRatio;
+    const candidate = { ...design, ...changes };
+    let generated;
+    try {
+      if (design.type === 'text' && ['text', 'fontFamily', 'color'].some((key) => key in changes)) {
+        generated = createTextTexture(candidate);
+        candidate.aspectRatio = generated.aspectRatio;
+        candidate.width = candidate.height * generated.aspectRatio;
+      }
+      // Commit state and texture only after the new projection is valid.
+      this.rebuild(candidate, sourceMesh);
+    } catch (error) {
+      generated?.texture.dispose();
+      throw error;
     }
-    this.rebuild(design);
+    Object.assign(design, candidate);
+    if (generated) this.replaceTexture(this.resources.get(design.id), generated.texture);
     this.notify();
   }
 
   removeSelected() {
+    this.cancelBackgroundRemoval();
     const design = this.selected();
     if (!design) return;
     const resource = this.resources.get(design.id);
@@ -255,6 +341,7 @@ export class DesignManager {
   }
 
   clearResources({ clearState = true } = {}) {
+    this.cancelBackgroundRemoval();
     this.resourceVersion += 1;
     this.clearPending();
     this.resources.forEach((resource) => {
@@ -280,8 +367,9 @@ export class DesignManager {
         if (design.type === 'text') {
           texture = createTextTexture(design).texture;
         } else {
-          if (!design.assetUrl) throw new Error('La configuración contiene una imagen sin URL.');
-          texture = await loadTexture(design.assetUrl);
+          const url = design.source?.dataUrl || design.assetUrl;
+          if (!url) throw new Error('La configuración contiene una imagen sin URL.');
+          texture = await loadTexture(url);
         }
         if (version !== this.resourceVersion) {
           texture.dispose();
