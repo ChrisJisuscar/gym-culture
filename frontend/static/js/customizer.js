@@ -33,6 +33,8 @@ if (customizerRoot) {
   const applyBackgroundButton = document.querySelector('#apply-background');
   const garmentOptions = document.querySelectorAll('[data-garment]');
   let customizationId = adminMode ? null : new URLSearchParams(window.location.search).get('customization');
+  let savedDesignSession = new URLSearchParams(location.search).has('saved');
+  document.addEventListener('gymculture:saved-design-bound', () => { customizationId = null; savedDesignSession = true; cartButton.textContent = 'AGREGAR AL CARRITO'; });
 
   // Configuración central de colores (solo label/hex/orden visual). La fuente de verdad
   // para "existe o no" una combinación sigue siendo ProductVariant del backend.
@@ -262,6 +264,8 @@ if (customizerRoot) {
       renderSelection(selectedDesign);
     }
   });
+  document.addEventListener('gymculture:editor-saving', event => { saving = event.detail; syncGarmentControls(); });
+  document.addEventListener('gymculture:saved-design-failed', () => { restoreFailed = true; updateAvailability(); });
 
   backgroundDialog.addEventListener('close', () => {
     window.GymCulture3D.cancelBackgroundRemoval();
@@ -415,6 +419,7 @@ if (customizerRoot) {
       return;
     }
     saving = true;
+    document.dispatchEvent(new CustomEvent('gymculture:editor-saving', { detail: true }));
     syncGarmentControls();
     cartButton.textContent = customizationId ? 'GUARDANDO...' : (customizerState.designs.length ? 'GUARDANDO PERSONALIZACIÓN...' : 'AGREGANDO...');
     cartNote.textContent = '';
@@ -433,7 +438,7 @@ if (customizerRoot) {
         const saved = customizationId
           ? await window.GymCultureCustomizationApi.update(customizationId, form)
           : await window.GymCultureCustomizationApi.create(form);
-        customizationId = saved.id;
+        if (!savedDesignSession) customizationId = saved.id;
         cartNote.textContent = isNewCustomization ? 'Producto personalizado agregado.' : 'Personalización guardada correctamente.';
         cartButton.textContent = 'GUARDAR CAMBIOS';
       } else {
@@ -459,6 +464,7 @@ if (customizerRoot) {
       cartNote.textContent = error.message || 'No pudimos conectar con el carrito. Intentá de nuevo.';
     } finally {
       saving = false;
+      document.dispatchEvent(new CustomEvent('gymculture:editor-saving', { detail: false }));
       syncGarmentControls();
       cartButton.textContent = customizationId ? 'GUARDAR CAMBIOS' : 'AGREGAR AL CARRITO';
     }
@@ -492,7 +498,8 @@ if (customizerRoot) {
         if (!window.GymCulture3D.isReady()) throw new Error('No se pudo iniciar el visor para restaurar la personalización.');
       }
       customizerState.productId = saved.product;
-      await window.GymCulture3D.loadCustomization({ ...saved.configuration, garment: { ...saved.configuration.garment, productId: saved.product } });
+      const editable = await window.GymCultureCustomizationApi.editableCopy(saved.configuration, { retainReferences: true });
+      await window.GymCulture3D.loadCustomization({ ...editable, garment: { ...editable.garment, productId: saved.product } }, { strict: true });
       cartButton.textContent = 'GUARDAR CAMBIOS';
       document.querySelector('.customizer-intro > p:last-child').textContent = 'Editá tu personalización guardada.';
     } catch (error) {

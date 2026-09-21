@@ -1,7 +1,6 @@
 import json
 from pathlib import Path
 
-from django.core.files.storage import default_storage
 from django.db import transaction
 from rest_framework import serializers
 
@@ -9,7 +8,9 @@ from cart.models import Cart, CartItem
 from products.models import Product, ProductVariant
 
 from .constants import MAX_ASSETS_PER_CUSTOMIZATION
-from .models import Customization, CustomizationAsset
+from .models import Customization, CustomizationAsset, SavedDesign
+from .storage import customization_storage, image_url
+from .print_quality import enrich_print_quality
 from .validators import validate_configuration, validate_uploaded_image
 
 
@@ -22,7 +23,8 @@ class CustomizationAssetSerializer(serializers.ModelSerializer):
 
     def get_url(self, obj):
         request = self.context.get("request")
-        return request.build_absolute_uri(obj.file.url) if request else obj.file.url
+        url = image_url(obj.customization, obj.file, asset_id=obj.pk)
+        return request.build_absolute_uri(url) if request else url
 
 
 class CustomizationSerializer(serializers.ModelSerializer):
@@ -34,15 +36,16 @@ class CustomizationSerializer(serializers.ModelSerializer):
         model = Customization
         fields = ["id", "product", "variant", "state", "frozen_at", "configuration", "preview_front_url", "preview_back_url", "assets", "created_at", "updated_at"]
 
-    def _url(self, field):
+    def _url(self, obj, side):
         request = self.context.get("request")
-        return request.build_absolute_uri(field.url) if request else field.url
+        url = image_url(obj, getattr(obj, f'preview_{side}'), side=side)
+        return request.build_absolute_uri(url) if request else url
 
     def get_preview_front_url(self, obj):
-        return self._url(obj.preview_front)
+        return self._url(obj, 'front')
 
     def get_preview_back_url(self, obj):
-        return self._url(obj.preview_back)
+        return self._url(obj, 'back')
 
 
 class CustomizationWriteSerializer(serializers.Serializer):
@@ -73,6 +76,8 @@ class CustomizationWriteSerializer(serializers.Serializer):
     def validate(self, attrs):
         if self.instance and self.instance.is_frozen:
             raise serializers.ValidationError({"detail": "Una personalización comprada ya no puede editarse."})
+        if (self.context.get('saved_design') or (self.instance and self.instance.private_assets)) and attrs.get('add_to_cart'):
+            raise serializers.ValidationError({'add_to_cart': 'Abrí el borrador para crear una copia independiente en el carrito.'})
         product, variant = attrs["product"], attrs["variant"]
         if variant.product_id != product.id:
             raise serializers.ValidationError({"variant": "La variante no pertenece al producto."})
@@ -92,7 +97,7 @@ class CustomizationWriteSerializer(serializers.Serializer):
             validate_uploaded_image(self.context["request"].FILES[field_name], field_name)
         return attrs
 
-    def save(self, **kwargs):
+    def save(self, *, saved_design_name=None, **kwargs):
         request = self.context["request"]
         data = self.validated_data
         saved_files = []
@@ -100,13 +105,15 @@ class CustomizationWriteSerializer(serializers.Serializer):
         stale_assets = []
         try:
             with transaction.atomic():
-                cart, _ = Cart.objects.get_or_create(user=request.user)
-                cart = Cart.objects.select_for_update().get(pk=cart.pk)
+                cart = None
+                if saved_design_name is None:
+                    cart, _ = Cart.objects.get_or_create(user=request.user)
+                    cart = Cart.objects.select_for_update().get(pk=cart.pk)
                 product = Product.objects.select_for_update().get(pk=data["product"].pk)
                 variant = ProductVariant.objects.select_for_update().select_related("product").get(pk=data["variant"].pk)
                 if not product.active or not variant.active or variant.product_id != product.pk:
                     raise serializers.ValidationError({"variant": "Producto o variante no disponible."})
-                related_items = cart.items.filter(customization=self.instance) if self.instance else cart.items.none()
+                related_items = cart.items.filter(customization=self.instance) if cart and self.instance else CartItem.objects.none()
                 data["product"], data["variant"] = product, variant
                 if self.instance:
                     customization = Customization.objects.select_for_update().get(pk=self.instance.pk, user=request.user)
@@ -118,7 +125,7 @@ class CustomizationWriteSerializer(serializers.Serializer):
                     customization.preview_front = data["preview_front"]
                     customization.preview_back = data["preview_back"]
                 else:
-                    customization = Customization(user=request.user, product=data["product"], variant=data["variant"], configuration={}, preview_front=data["preview_front"], preview_back=data["preview_back"])
+                    customization = Customization(user=request.user, product=data["product"], variant=data["variant"], configuration={}, preview_front=data["preview_front"], preview_back=data["preview_back"], private_assets=saved_design_name is not None)
                 customization.save()
                 saved_files.extend([customization.preview_front.name, customization.preview_back.name])
 
@@ -141,13 +148,20 @@ class CustomizationWriteSerializer(serializers.Serializer):
                 assets_by_id = {str(asset.id): asset for asset in customization.assets.all()}
                 for design in configuration["designs"]:
                     if design.get("type") == "image":
-                        design["assetUrl"] = assets_by_id[str(design["assetId"])].file.url
+                        design["assetUrl"] = image_url(customization, assets_by_id[str(design["assetId"])].file, asset_id=design['assetId'])
                         if design.get("originalAssetId"):
-                            design["originalAssetUrl"] = assets_by_id[str(design["originalAssetId"])].file.url
+                            design["originalAssetUrl"] = image_url(customization, assets_by_id[str(design["originalAssetId"])].file, asset_id=design['originalAssetId'])
+                        active_asset = assets_by_id[str(design['assetId'])]
+                        design['imageWidth'], design['imageHeight'] = active_asset.width, active_asset.height
+                        original_asset = assets_by_id[str(design.get('originalAssetId', design['assetId']))]
+                        design['originalWidth'], design['originalHeight'] = original_asset.width, original_asset.height
                 valid_ids = set(customization.assets.values_list("id", flat=True))
                 validate_configuration(configuration, data["variant"], valid_ids)
+                enrich_print_quality(configuration)
                 customization.configuration = configuration
                 customization.save(update_fields=["configuration", "updated_at"])
+                if saved_design_name is not None:
+                    SavedDesign.objects.update_or_create(customization=customization, defaults={'user': request.user, 'name': saved_design_name})
 
                 referenced_ids = {str(item[key]) for item in configuration["designs"] if item.get("type") == "image" for key in ("assetId", "originalAssetId") if item.get(key)}
                 for asset in list(customization.assets.all()):
@@ -164,11 +178,11 @@ class CustomizationWriteSerializer(serializers.Serializer):
                     customization.save(update_fields=["state", "updated_at"])
             for old_name in old_previews:
                 if old_name and old_name not in saved_files:
-                    default_storage.delete(old_name)
+                    customization_storage.delete(old_name)
             for asset in stale_assets:
                 asset.delete()
             return customization
         except Exception:
             for name in saved_files:
-                default_storage.delete(name)
+                customization_storage.delete(name)
             raise

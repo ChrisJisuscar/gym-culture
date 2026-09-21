@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Mis Diseños | GYM CULTURE{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/editor-workspace.css' %}">{% endblock %}
+{% block content %}
+{% include 'components/navbar.html' %}
+<main class="saved-designs-page">
+  <header><div><p class="eyebrow">MIS DISEÑOS</p><h1>Ideas que<br><i>son tuyas.</i></h1><p>Tu biblioteca privada. Volvé a editar cuando quieras.</p></div><a class="button button-accent" href="{% url 'create-tshirt' %}">CREAR DISEÑO ↗</a></header>
+  <p id="saved-design-status" role="status">Cargando tus diseños…</p>
+  <div id="saved-design-list" class="saved-design-grid"></div>
+  <nav class="saved-pagination" aria-label="Páginas de diseños"><button type="button" class="button button-outline" data-saved-page="previous" disabled>ANTERIOR</button><button type="button" class="button button-outline" data-saved-page="next" disabled>SIGUIENTE</button></nav>
+</main>
+<dialog id="delete-saved-dialog" class="workspace-dialog" aria-labelledby="delete-saved-title"><h2 id="delete-saved-title">¿Eliminar este diseño?</h2><p>Se eliminará de tu biblioteca. Las copias agregadas al carrito se conservan.</p><p role="status"></p><div class="dialog-actions"><button type="button" class="button button-outline" data-cancel-delete>CANCELAR</button><button type="button" class="button button-accent" data-confirm-delete>ELIMINAR</button></div></dialog>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/customization-api.js' %}" defer></script><script type="module" src="{% static 'js/saved-designs.js' %}"></script>{% endblock %}

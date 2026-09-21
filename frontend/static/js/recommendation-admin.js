@@ -22,7 +22,7 @@ if (page) {
         for (const key of ['name', 'culture']) form.elements[key].value = item[key];
         for (const key of ['active', 'featured']) form.elements[key].checked = item[key];
         if (item.customization_state?.version === 1) {
-          await GymCulture3D.loadCustomization(item.customization_state);
+          await GymCulture3D.loadCustomization(await api.editableCopy(item.customization_state, { retainReferences: true }), { strict: true });
         } else {
           await GymCulture3D.applyDesignAsset({ assetUrl: item.design_asset_url, garmentType: item.garment_type, position: item.default_position, rotation: item.default_rotation, scale: item.default_scale, name: item.name, baseColor: item.base_color, baseColorHex: item.base_color_hex });
         }
@@ -38,6 +38,7 @@ if (page) {
     if (!authorized || saving || !GymCulture3D.isReady() || !form.reportValidity()) return;
     saving = true; sync(); tell('Generando vista previa y guardando recomendación…');
     document.querySelector('.customizer-layout').inert = true;
+    document.dispatchEvent(new CustomEvent('gymculture:editor-saving', { detail: true }));
     try {
       const state = GymCulture3D.getCustomizationState();
       const previews = await GymCulture3D.capturePreviews({ size: 640, quality: .82 });
@@ -51,12 +52,14 @@ if (page) {
       const item = await api.requestJson(id ? `/api/backoffice/recommendations/${id}/` : '/api/backoffice/recommendations/', { method: id ? 'PATCH' : 'POST', body: data });
       id = item.id; page.dataset.recommendationId = id;
       history.replaceState(null, '', `/backoffice/recommendations/${id}/edit/`);
-      await GymCulture3D.loadCustomization(item.customization_state);
       const preview = document.querySelector('#recommendation-saved-preview'); preview.src = item.preview_image_url; preview.hidden = false;
       dirty = false;
       tell('Recomendación guardada. La vista previa y todos los elementos quedaron actualizados.');
     } catch (error) { tell(error.message, true); }
-    finally { saving = false; document.querySelector('.customizer-layout').inert = false; sync(); }
+    finally {
+      saving = false; document.querySelector('.customizer-layout').inert = false;
+      document.dispatchEvent(new CustomEvent('gymculture:editor-saving', { detail: false })); sync();
+    }
   });
   initialize();
 }

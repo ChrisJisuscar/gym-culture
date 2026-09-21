@@ -2,6 +2,7 @@ import * as THREE from '/static/vendor/three/three.module.min.js';
 import { projectDecal } from './decal-projector.js';
 import { createTextTexture } from './text-texture.js';
 import { BackgroundRemovalService } from './background-removal-service.js';
+import { normalizeLayers, syncLayers } from './layer-manager.js';
 
 export const DESIGN_LIMITS = {
   maxFileBytes: 10 * 1024 * 1024,
@@ -10,6 +11,7 @@ export const DESIGN_LIMITS = {
   minScale: 0.35,
   maxScale: 2.5,
   defaultSizeFactor: 0.2,
+  maxDesigns: 20,
 };
 
 const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
@@ -131,6 +133,7 @@ export class DesignManager {
 
   place(hit) {
     if (!this.pending) return null;
+    if (this.designs.length >= DESIGN_LIMITS.maxDesigns) throw new Error('Podés agregar hasta 20 capas por prenda.');
     const id = createId();
     const base = this.garmentSize.y * DESIGN_LIMITS.defaultSizeFactor;
     const design = {
@@ -139,13 +142,18 @@ export class DesignManager {
       position: vectorData(hit.point),
       normal: vectorData(hit.normal),
       rotation: 0,
+      layerOrder: this.designs.length, visibility: true, flipX: false, flipY: false,
       projectionVersion: 2,
       scale: 1,
       aspectRatio: this.pending.aspectRatio,
       width: this.pending.aspectRatio >= 1 ? base : base * this.pending.aspectRatio,
       height: this.pending.aspectRatio >= 1 ? base / this.pending.aspectRatio : base,
     };
-    if (design.type === 'image') design.source = this.pending.source;
+    if (design.type === 'image') {
+      design.source = this.pending.source;
+      this.imageMetadata(design, this.pending.texture);
+      design.originalWidth = design.imageWidth; design.originalHeight = design.imageHeight;
+    }
     else Object.assign(design, { text: this.pending.text, fontFamily: this.pending.fontFamily, color: this.pending.color, fontSize: 280 });
     this.designs.push(design);
     this.resources.set(id, { texture: this.pending.texture, mesh: null, sourceMesh: hit.mesh });
@@ -184,6 +192,10 @@ export class DesignManager {
       geometry.dispose();
       throw new Error('Esa zona no admite un diseño con el tamaño actual.');
     }
+    const uv = geometry.attributes.uv;
+    if (design.flipX || design.flipY) for (let index = 0; index < uv.count; index++) {
+      uv.setXY(index, design.flipX ? 1 - uv.getX(index) : uv.getX(index), design.flipY ? 1 - uv.getY(index) : uv.getY(index));
+    }
     if (!resource.mesh) {
       const material = new THREE.MeshBasicMaterial({
         map: resource.texture,
@@ -207,7 +219,8 @@ export class DesignManager {
     }
     resource.sourceMesh = targetMesh;
     design.surface = targetMesh.name;
-    resource.mesh.visible = targetMesh.visible;
+    resource.mesh.visible = targetMesh.visible && design.visibility !== false;
+    resource.mesh.renderOrder = 2 + (design.layerOrder ?? this.designs.indexOf(design));
   }
 
   select(id) {
@@ -238,6 +251,7 @@ export class DesignManager {
       return { before: design.source?.dataUrl || design.assetUrl, after: source.dataUrl, confidenceLevel: source.confidenceLevel };
     } finally {
       if (this.processing === operation) this.processing = null;
+      this.notify();
     }
   }
   cancelBackgroundRemoval() { this.backgroundPreview = null; }
@@ -258,11 +272,12 @@ export class DesignManager {
       }
       design.source = source;
       design.backgroundRemoved = true;
+      this.imageMetadata(design, texture);
       delete design.assetId; delete design.assetUrl;
       this.replaceTexture(resource, texture);
       this.cancelBackgroundRemoval(); this.notify();
       return true;
-    } finally { if (this.processing === pending) this.processing = null; }
+    } finally { if (this.processing === pending) this.processing = null; this.notify(); }
   }
 
   async restoreOriginal() {
@@ -279,9 +294,10 @@ export class DesignManager {
       else Object.assign(design, { assetId: design.originalAssetId, assetUrl: design.originalAssetUrl });
       delete design.originalSource; delete design.originalAssetId; delete design.originalAssetUrl;
       design.backgroundRemoved = false;
+      this.imageMetadata(design, texture);
       this.replaceTexture(resource, texture); this.notify();
       return true;
-    } finally { if (this.processing === operation) this.processing = null; }
+    } finally { if (this.processing === operation) this.processing = null; this.notify(); }
   }
 
   replaceTexture(resource, texture) {
@@ -289,7 +305,23 @@ export class DesignManager {
     resource.texture = texture; resource.mesh.material.map = texture;
     resource.mesh.material.needsUpdate = true; previous.dispose();
   }
-  meshes() { return [...this.resources.values()].map((resource) => resource.mesh).filter(Boolean); }
+  imageMetadata(design, texture) {
+    design.imageWidth = texture.image.naturalWidth || texture.image.width;
+    design.imageHeight = texture.image.naturalHeight || texture.image.height;
+  }
+  meshes() { return [...this.resources.values()].map((resource) => resource.mesh).filter(Boolean).sort((a, b) => b.renderOrder - a.renderOrder); }
+
+  duplicateSelected(hit) {
+    const original = this.selected();
+    if (!original) return;
+    if (this.designs.length >= DESIGN_LIMITS.maxDesigns) throw new Error('Podés agregar hasta 20 capas por prenda.');
+    const design = { ...structuredClone(original), id: createId(), position: vectorData(hit.point), normal: vectorData(hit.normal), layerOrder: this.designs.length };
+    const texture = this.resources.get(original.id).texture.clone(); texture.needsUpdate = true;
+    this.designs.push(design); this.resources.set(design.id, { texture, mesh: null, sourceMesh: hit.mesh });
+    try { this.rebuild(design, hit.mesh); }
+    catch (error) { texture.dispose(); this.resources.delete(design.id); this.designs.pop(); throw error; }
+    this.select(design.id); return design;
+  }
 
   moveSelected(hit) {
     this.updateSelected({ position: vectorData(hit.point), normal: vectorData(hit.normal) }, hit.mesh);
@@ -328,6 +360,7 @@ export class DesignManager {
     resource.texture.dispose();
     this.resources.delete(design.id);
     this.designs.splice(this.designs.indexOf(design), 1);
+    syncLayers(this);
     this.selectedId = null;
     this.notify();
   }
@@ -361,6 +394,7 @@ export class DesignManager {
     this.clearResources({ clearState: false });
     const version = this.resourceVersion;
     const failed = [];
+    normalizeLayers(this.designs);
     for (const design of this.designs) {
       let texture;
       try {
@@ -370,6 +404,7 @@ export class DesignManager {
           const url = design.source?.dataUrl || design.assetUrl;
           if (!url) throw new Error('La configuración contiene una imagen sin URL.');
           texture = await loadTexture(url);
+          this.imageMetadata(design, texture);
         }
         if (version !== this.resourceVersion) {
           texture.dispose();

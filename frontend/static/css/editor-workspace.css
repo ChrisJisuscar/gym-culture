@@ -1,0 +1,60 @@
+.history-toolbar { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 18px; }
+.history-toolbar button, .transform-toolbar button, .transform-toolbar select, #layer-list button { min-height: 40px; padding: 8px 12px; border: 1px solid #4a365f; border-radius: 8px; color: #ede4f8; background: #1c1328; font-size: .68rem; cursor: pointer; transition: border-color .18s, background .18s; }
+.history-toolbar button:hover:not(:disabled), .transform-toolbar button:hover:not(:disabled), #layer-list button:hover:not(:disabled) { background: #342044; border-color: #b981eb; }
+.history-toolbar button:disabled, .transform-toolbar button:disabled, #layer-list button:disabled { opacity: .38; cursor: default; }
+.history-toolbar button:focus-visible, .transform-toolbar :focus-visible, #layer-list button:focus-visible { outline: 2px solid #c990ff; outline-offset: 3px; }
+.transform-toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-block: 16px; }
+.transform-toolbar > :first-child, .align-control { grid-column: 1 / -1; }
+.align-control span { display: block; margin: 8px 0; font-size: .7rem; color: #bdb0ca; }
+.align-control select { width: 100%; max-width: 100%; }
+.print-quality { padding: 12px; border: 1px solid #34303d; border-radius: 9px; background: #131017; line-height: 1.5; }
+.print-quality strong, .print-quality span, .print-quality small { display: block; }
+.print-quality strong { font-size: .75rem; margin-bottom: 6px; }
+.print-quality span { font-size: .7rem; color: #d2c8df; }
+.print-quality small { font-size: .6rem; color: #aaa0b5; margin-top: 8px; }
+.print-quality[data-level="high"] strong { color: #9dd2b0; }
+.print-quality[data-level="medium"] strong { color: #e4c189; }
+.print-quality[data-level="low"] strong { color: #e59ca6; }
+.layers-panel { padding-top: 20px; border-top: 1px solid #302439; margin-top: 20px; }
+.layers-panel h3 { font: .7rem 'DM Mono', monospace; letter-spacing: .14em; }
+#layers-empty { color: #ad9dbc; font-size: .75rem; }
+#layer-list { padding: 0; margin: 14px 0 0; list-style: none; max-height: 290px; overflow: auto; }
+#layer-list li { display: grid; grid-template-columns: minmax(80px, 1fr) repeat(4, 40px); gap: 5px; padding: 6px; margin-bottom: 6px; border: 1px solid transparent; border-radius: 10px; background: #15101d; }
+#layer-list li.is-selected { border-color: #aa76d4; background: #29173c; }
+#layer-list button { padding: 6px; }
+#layer-list .layer-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; border-color: transparent; background: transparent; }
+.save-design { width: 100%; margin-top: 10px; }
+.save-design, .workspace-dialog .button-outline, .saved-designs-page .button-outline { background: #1c1328; color: #e5c9fb; border-color: #71508e; }
+.save-design:hover:not(:disabled), .workspace-dialog .button-outline:hover:not(:disabled), .saved-designs-page .button-outline:hover:not(:disabled) { background: #342044; border-color: #be8aea; }
+.save-design:disabled, .workspace-dialog .button:disabled, .saved-designs-page .button:disabled { opacity: .45; cursor: not-allowed; }
+.saved-library-link { display: block; color: #d9b6f6; text-align: center; margin-top: 18px; font-size: .7rem; }
+.workspace-dialog { width: min(560px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 32px); overflow: auto; border: 1px solid #806092; border-radius: 20px; background: radial-gradient(ellipse at top left, #342046, transparent 70%), #110d18; color: #f3eafa; padding: clamp(20px, 4vw, 36px); box-shadow: 0 30px 100px #0009; }
+.workspace-dialog::backdrop { background: #060409e6; backdrop-filter: blur(6px); }
+.workspace-dialog h2 { font-size: 2rem; letter-spacing: -.04em; margin: 8px 0 20px; }
+.workspace-dialog p { color: #bdadcd; font-size: .85rem; line-height: 1.6; }
+.workspace-dialog label { display: block; font-size: .75rem; color: #dac8e6; }
+.workspace-dialog .editor-input { width: 100%; margin-block: 8px 16px; padding: 12px; border: 1px solid #594465; border-radius: 8px; background: #100b18; color: white; box-sizing: border-box; }
+.dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.ai-dialog { width: min(740px, calc(100vw - 32px)); }
+.generation-options { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.generation-transparency { margin-block: 10px; }
+.ai-result { padding-block: 10px; }
+.ai-result img { display: block; max-width: 100%; max-height: 360px; object-fit: contain; margin: auto auto 16px; }
+.ai-result[hidden], .print-quality[hidden] { display: none; }
+.saved-designs-page { max-width: 1500px; margin: auto; padding: 160px clamp(20px, 4vw, 64px) 70px; min-height: 100vh; }
+.saved-designs-page > header { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 40px; }
+.saved-designs-page h1 { font-size: clamp(3rem, 7vw, 6rem); line-height: .95; letter-spacing: -.06em; margin: 20px 0; }
+.saved-designs-page h1 i { color: #bc86f0; font-style: normal; }
+.saved-designs-page p { color: #baa8cb; }
+.saved-design-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin: 25px 0; }
+.saved-design-card { border: 1px solid #4a305c; border-radius: 18px; padding: 16px; background: linear-gradient(145deg, #21132e, #110d18); }
+.saved-design-card > img { width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 10px; background: #100d18; }
+.saved-design-card h2 { font-size: 1.1rem; margin: 20px 0 8px; overflow-wrap: anywhere; }
+.saved-design-card p { font-size: .75rem; margin-bottom: 20px; }
+.saved-design-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.saved-design-actions .button { flex: 1; padding: 13px 12px; min-height: 42px; font-size: .6rem; }
+.saved-pagination { display: flex; justify-content: flex-end; gap: 10px; }
+.saved-designs-page .is-error, .workspace-dialog .is-error { color: #f2a5ad; }
+@media (max-width: 960px) { .saved-design-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .saved-design-grid { grid-template-columns: 1fr; } .saved-designs-page > header { align-items: start; flex-direction: column; } .saved-designs-page { padding-top: 125px; } .history-toolbar { justify-content: stretch; } .history-toolbar button { flex: 1; } #layer-list li { grid-template-columns: minmax(60px, 1fr) repeat(4, 35px); } }
+@media (prefers-reduced-motion: reduce) { .history-toolbar button, .transform-toolbar button, #layer-list button { transition: none; } }

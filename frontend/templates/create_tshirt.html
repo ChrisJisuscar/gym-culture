@@ -4,6 +4,7 @@
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'css/customizer.css' %}">
   <link rel="stylesheet" href="{% static 'css/recommendations.css' %}">
+  <link rel="stylesheet" href="{% static 'css/editor-workspace.css' %}">
 {% endblock %}
 {% block content %}
   {% if customizer_mode == 'recommendation-admin' %}
@@ -41,6 +42,7 @@
             SUBIR DISEÑO
           </label>
           <input id="design-upload" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+          {% if customizer_mode != 'recommendation-admin' %}<button type="button" class="tool-button tool-button-secondary" id="generate-ai">GENERAR CON IA <span aria-hidden="true">✦</span></button>{% endif %}
           <p class="tool-feedback" id="design-feedback" role="status">PNG, JPG o WebP · máximo 10 MB</p>
         </section>
         <section>
@@ -54,6 +56,14 @@
         </section>
         <section class="selection-panel" id="selection-panel" hidden>
           <h3 id="selection-title">ELEMENTO SELECCIONADO</h3>
+          <p class="print-quality" id="print-quality" hidden><strong></strong><span></span><small>Estimación orientativa según tamaño de impresión.</small></p>
+          <div class="transform-toolbar" role="group" aria-label="Herramientas de la capa seleccionada">
+            <button type="button" data-transform="duplicate">Duplicar</button>
+            <button type="button" data-transform="flipX" title="Voltear horizontalmente">Reflejar ↔</button>
+            <button type="button" data-transform="flipY" title="Voltear verticalmente">Reflejar ↕</button>
+            <label class="align-control"><span>Alinear</span><select data-align aria-label="Alinear capa"><option value="">Elegir alineación</option><option value="centerX">Centrar horizontal</option><option value="centerY">Centrar vertical</option><option value="center">Centro de impresión</option></select></label>
+            <button type="button" data-transform="front">Traer al frente</button><button type="button" data-transform="back">Enviar atrás</button>
+          </div>
           <button type="button" class="button button-outline" id="remove-background" hidden>QUITAR FONDO</button>
           <button type="button" class="button button-outline" id="restore-original" hidden>RESTAURAR ORIGINAL</button>
           <div id="text-properties" hidden>
@@ -82,6 +92,7 @@
         </section>
       </aside>
       <section class="editor-panel panel" aria-labelledby="viewer-title">
+        <div class="history-toolbar" role="group" aria-label="Historial del editor"><button id="undo-design" type="button" disabled title="Ctrl+Z">↶ DESHACER</button><button id="redo-design" type="button" disabled title="Ctrl+Shift+Z / Ctrl+Y">↷ REHACER</button></div>
         <section id="hood-controls" class="hood-controls" role="group" aria-label="Estado de la capucha" hidden>
           <span class="hood-controls-label">CAPUCHA</span>
           <button type="button" data-hood-state="down" class="is-active" aria-pressed="true">
@@ -102,6 +113,7 @@
           <div class="customizer-3d-container" id="customizer-3d-container" aria-label="Remera 3D interactiva"></div>
           <p class="viewer-status" id="viewer-status" role="status">Cargando remera 3D…</p>
         </div>
+        <section class="layers-panel" aria-labelledby="layers-title"><h3 id="layers-title">CAPAS</h3><p id="layers-empty">Tus imágenes y textos aparecerán acá.</p><ol id="layer-list" aria-label="Capas, del frente hacia atrás"></ol></section>
       </section>
       <aside class="summary-panel panel">
         <div class="panel-title"><h2>TU REMERA</h2></div>
@@ -141,6 +153,9 @@
           <p class="total"><span>TOTAL</span><b id="total-price">Gs. —</b></p>
         </div>
         <button type="button" class="button button-accent add-cart" id="add-cart">AGREGAR AL CARRITO</button>
+        <button type="button" class="button button-outline save-design" id="save-design" disabled>GUARDAR DISEÑO</button>
+        <a class="saved-library-link" href="{% url 'saved-designs' %}">MIS DISEÑOS ↗</a>
+        <p id="saved-design-feedback" class="cart-note" role="status"></p>
         <p class="cart-note" id="cart-note" role="status"></p>
         {% endif %}
       </aside>
@@ -191,6 +206,7 @@
     </section>
     {% endif %}
   </main>
+  {% include 'components/editor-dialogs.html' %}
   <dialog id="background-preview-dialog" class="background-preview-dialog" aria-labelledby="background-preview-title" aria-describedby="background-preview-description">
     <h2 id="background-preview-title">Revisá tu diseño.</h2>
     <p id="background-preview-description">Compará los detalles antes de aplicar. Siempre podés restaurar el original.</p>
@@ -215,5 +231,10 @@
   <script type="importmap">{ "imports": { "three": "/static/vendor/three/three.module.min.js" } }</script>
   <script type="module" src="{% static 'js/customizer-3d.js' %}"></script>
   <script type="module" src="{% static 'js/recommendations.js' %}"></script>
+  <script type="module" src="{% static 'js/editor-workspace.js' %}"></script>
+  {% if customizer_mode != 'recommendation-admin' %}
+  <script type="module" src="{% static 'js/saved-designs.js' %}"></script>
+  <script type="module" src="{% static 'js/ai-generation.js' %}"></script>
+  {% endif %}
   {% if customizer_mode == 'recommendation-admin' %}<script type="module" src="{% static 'js/recommendation-admin.js' %}"></script>{% endif %}
 {% endblock %}

@@ -98,6 +98,17 @@ def validate_configuration(value, variant=None, available_asset_ids=None, allow_
         if not ID_VALUE.fullmatch(design_id) or design_id in seen:
             raise serializers.ValidationError({"configuration": "Los IDs de diseño deben ser únicos y válidos."})
         seen.add(design_id)
+        for key in ('visibility', 'flipX', 'flipY'):
+            if key in design and not isinstance(design[key], bool):
+                raise serializers.ValidationError({key: 'Debe ser verdadero o falso.'})
+        if 'layerOrder' in design:
+            if type(design['layerOrder']) is not int or not 0 <= design['layerOrder'] < MAX_DESIGNS_PER_CUSTOMIZATION:
+                raise serializers.ValidationError({'layerOrder': 'Orden de capa inválido.'})
+        for key in ('imageWidth', 'imageHeight', 'originalWidth', 'originalHeight'):
+            if key in design:
+                _number(design[key], MIN_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION, key)
+        # Client estimates are advisory. Persist only server-recomputed metadata.
+        design.pop('printQuality', None)
         _vector(design.get("position"), "position")
         _vector(design.get("normal"), "normal")
         for key, minimum, maximum in (("rotation", -180, 180), ("scale", .35, 2.5), ("aspectRatio", .01, 100), ("width", .001, 100), ("height", .001, 100)):

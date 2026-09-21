@@ -5,6 +5,7 @@ from pathlib import Path
 from django.db import transaction
 from django.core.files.storage import default_storage
 from customizations.validators import validate_uploaded_image
+from customizations.print_quality import enrich_print_quality
 from .models import DesignRecommendation, RecommendationAsset
 from .ordering import lock_cultures
 
@@ -53,6 +54,12 @@ def save_recommendation_state(instance, data, files):
                     else:
                         design.pop(url_key, None)
             garment = configuration['garment']
+            for design in configuration['designs']:
+                if design['type'] == 'image':
+                    asset = assets[str(design['assetId'])]
+                    original = assets[str(design.get('originalAssetId', design['assetId']))]
+                    design.update(imageWidth=asset.width, imageHeight=asset.height, originalWidth=original.width, originalHeight=original.height)
+            enrich_print_quality(configuration)
             instance.garment_type = garment['type']
             if garment['color'] in instance.BASE_COLORS:
                 instance.base_color = garment['color']

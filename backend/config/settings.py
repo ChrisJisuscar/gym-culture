@@ -157,6 +157,13 @@ EMAIL_BACKEND = os.getenv(
 AUTH_USER_MODEL = "users.User"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+PRIVATE_MEDIA_ROOT = BASE_DIR / 'var' / 'private'
+# Off until an operator configures a generation server. Credentials stay here.
+IMAGE_GENERATION_PROVIDER = os.getenv('IMAGE_GENERATION_PROVIDER', 'disabled')
+IMAGE_GENERATION_URL = os.getenv('IMAGE_GENERATION_URL', '')
+IMAGE_GENERATION_API_KEY = os.getenv('IMAGE_GENERATION_API_KEY', '')
+IMAGE_GENERATION_TIMEOUT = 30
+IMAGE_GENERATION_MAX_BYTES = 10 * 1024 * 1024
 BACKGROUND_REMOVAL_MODEL_PATH = Path(os.getenv("BACKGROUND_REMOVAL_MODEL_PATH", str(BASE_DIR / "var" / "models" / "birefnet-general-lite.onnx")))
 
 REST_FRAMEWORK = {

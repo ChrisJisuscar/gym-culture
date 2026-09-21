@@ -1,0 +1,25 @@
+{% if customizer_mode != 'recommendation-admin' %}
+<dialog id="save-design-dialog" class="workspace-dialog" aria-labelledby="save-design-title">
+  <form>
+    <p class="eyebrow">TU BIBLIOTECA PRIVADA</p><h2 id="save-design-title">Guardá tu idea.</h2>
+    <p>Vas a poder volver, editar cada detalle y llevarla al carrito cuando quieras.</p>
+    <label for="saved-design-name">Nombre del diseño</label><input id="saved-design-name" name="name" class="editor-input" maxlength="120" required autocomplete="off">
+    <p role="status"></p>
+    <div class="dialog-actions"><button type="button" class="button button-outline" data-cancel-save>CANCELAR</button><button type="submit" class="button button-accent">GUARDAR</button></div>
+  </form>
+</dialog>
+<dialog id="ai-generation-dialog" class="workspace-dialog ai-dialog" aria-labelledby="ai-generation-title">
+  <form>
+    <p class="eyebrow">UNA IDEA, TU ESTILO</p><h2 id="ai-generation-title">Generá con IA.</h2>
+    <label for="generation-prompt">Describí tu diseño</label><textarea id="generation-prompt" name="prompt" class="editor-input" maxlength="1000" minlength="3" required rows="3" placeholder="Un tigre cyberpunk estilo gymrat…"></textarea>
+    <div class="generation-options">
+      <label>Cultura<select class="editor-input" name="culture"><option value="">Libre</option><option value="gymrat">GYMRAT</option><option value="anime">ANIME</option><option value="memes">MEMES</option><option value="urban">URBANO</option></select></label>
+      <label>Formato<select class="editor-input" name="format"><option value="square">Cuadrado</option><option value="vertical">Vertical</option></select></label>
+    </div>
+    <label class="generation-transparency"><input type="checkbox" name="transparent"> Pedir fondo transparente, si está disponible</label>
+    <p role="status">Comprobando disponibilidad…</p>
+    <div class="ai-result" hidden><img alt="Diseño generado"><button type="button" class="button button-accent" data-use-generated>USAR ESTE DISEÑO</button></div>
+    <div class="dialog-actions"><button type="button" class="button button-outline" data-close-ai>CERRAR</button><button type="submit" class="button button-accent" disabled>GENERAR</button></div>
+  </form>
+</dialog>
+{% endif %}

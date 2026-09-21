@@ -1,4 +1,9 @@
 (() => {
+  const fetchAsset = (url) => {
+    const target = new URL(url, location.href);
+    const privatePath = /^\/api\/customizations\/(?:generated\/|[0-9a-f-]+\/(?:assets|previews)\/)/.test(target.pathname);
+    return target.origin === location.origin && privatePath ? window.GymCultureAuth.request(target.href) : fetch(url, { credentials: 'same-origin' });
+  };
   const dataUrlToBlob = async (dataUrl) => {
     const response = await fetch(dataUrl);
     return response.blob();
@@ -58,6 +63,7 @@
   };
 
   window.GymCultureCustomizationApi = {
+    fetchAsset,
     buildFormData,
     create: (form) => requestJson('/api/customizations/', { method: 'POST', body: form }),
     update: (id, form) => requestJson(`/api/customizations/${id}/`, { method: 'PATCH', body: form }),
@@ -65,19 +71,28 @@
     requestJson,
     // Copy public recommendation assets into the customer's own upload flow.
     // Recommendation UUIDs must never be submitted as customer-owned assets.
-    editableCopy: async (state) => {
+    editableCopy: async (state, { retainReferences = false } = {}) => {
       const configuration = JSON.parse(JSON.stringify(state));
+      const cached = new Map();
       for (const design of configuration.designs) {
         if (design.type !== 'image') continue;
         for (const [urlKey, idKey, sourceKey] of [['assetUrl', 'assetId', 'source'], ['originalAssetUrl', 'originalAssetId', 'originalSource']]) {
           if (!design[urlKey]) continue;
-          const response = await fetch(design[urlKey], { credentials: 'same-origin' });
-          if (!response.ok) throw new Error('No se pudo descargar una imagen de la recomendación.');
-          const blob = await response.blob();
-          if (!['image/png', 'image/jpeg', 'image/webp'].includes(blob.type) || blob.size > 10 * 1024 * 1024) throw new Error('Una imagen de la recomendación no es válida.');
-          const dataUrl = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(blob); });
-          design[sourceKey] = { dataUrl, mimeType: blob.type, size: blob.size, name: 'Diseño recomendado' };
-          delete design[idKey]; delete design[urlKey];
+          // Local copies keep history usable after a save replaces remote files.
+          if (design[sourceKey]?.dataUrl) {
+            if (!retainReferences) { delete design[idKey]; delete design[urlKey]; }
+            continue;
+          }
+          if (!cached.has(design[urlKey])) {
+            const response = await fetchAsset(design[urlKey]);
+            if (!response.ok) throw new Error('No se pudo descargar una imagen del diseño.');
+            const blob = await response.blob();
+            if (!['image/png', 'image/jpeg', 'image/webp'].includes(blob.type) || blob.size > 10 * 1024 * 1024) throw new Error('Una imagen del diseño no es válida.');
+            const dataUrl = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(new Error('No se pudo leer la imagen.')); reader.readAsDataURL(blob); });
+            cached.set(design[urlKey], { dataUrl, mimeType: blob.type, size: blob.size, name: 'Diseño guardado' });
+          }
+          design[sourceKey] = { ...cached.get(design[urlKey]) };
+          if (!retainReferences) { delete design[idKey]; delete design[urlKey]; }
         }
       }
       return configuration;

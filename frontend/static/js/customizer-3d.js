@@ -6,6 +6,8 @@ import { RaycastManager } from './customizer-3d/raycast-manager.js';
 import { GARMENTS, getGarment } from './customizer-3d/garments.js';
 import { disposeModel, prepareGarment, getFrameDistance } from './customizer-3d/garment-model.js';
 import { recommendationHit } from './customizer-3d/recommendation-placement.js';
+import { changeLayer, syncLayers } from './customizer-3d/layer-manager.js';
+import { transformSelection } from './customizer-3d/transform-tools.js';
 
 const container = document.querySelector('#customizer-3d-container');
 const statusElement = document.querySelector('#viewer-status');
@@ -50,6 +52,7 @@ const Customizer3D = (() => {
   let draggingDesign = false;
   let repositioningDesign = false;
   let busy = false;
+  let editLocked = false;
   let initialLoad;
   let lifecycle = 0;
   let resizeObserver;
@@ -103,7 +106,7 @@ const Customizer3D = (() => {
   const setBusy = (value) => {
     busy = value;
     container.setAttribute('aria-busy', String(value));
-    if (controls) controls.enabled = !value;
+    if (controls) controls.enabled = !value && !editLocked;
     document.dispatchEvent(new CustomEvent('gymculture:3d-busy', { detail: value }));
   };
 
@@ -193,7 +196,7 @@ const Customizer3D = (() => {
     garmentMeshes.forEach((mesh) => {
       if (Object.values(definition.hoodMeshes).includes(mesh.name)) mesh.visible = mesh.name === definition.hoodMeshes[value];
     });
-    designManager?.resources.forEach((resource) => { if (resource.mesh) resource.mesh.visible = resource.sourceMesh?.visible ?? resource.mesh.visible; });
+    if (designManager) syncLayers(designManager);
   };
   const setHoodState = (value) => { if (!busy) applyHoodState(value); };
 
@@ -227,7 +230,7 @@ const Customizer3D = (() => {
   };
 
   const handlePointerDown = (event) => {
-    if (previewMode || busy || !designManager || !controls) return;
+    if (previewMode || busy || editLocked || !designManager || !controls) return;
     if (repositioningDesign) {
       const hit = raycastManager.garmentHit(event, garmentMeshes);
       if (!hit) return;
@@ -272,7 +275,7 @@ const Customizer3D = (() => {
   };
 
   const handlePointerMove = (event) => {
-    if (busy || !draggingDesign) return;
+    if (busy || editLocked || !draggingDesign) return;
     event.stopPropagation();
     const hit = raycastManager.garmentHit(event, garmentMeshes);
     if (!hit) return;
@@ -286,7 +289,7 @@ const Customizer3D = (() => {
   const handlePointerUp = (event) => {
     if (busy || !draggingDesign) return;
     draggingDesign = false;
-    controls.enabled = true;
+    controls.enabled = !editLocked;
     container.classList.remove('is-dragging-design');
     if (renderer.domElement.hasPointerCapture(event.pointerId)) renderer.domElement.releasePointerCapture(event.pointerId);
   };
@@ -484,7 +487,7 @@ const Customizer3D = (() => {
     }
   };
 
-  const loadCustomization = async (configuration) => {
+  const loadCustomization = async (configuration, { strict = false } = {}) => {
     activateEditor();
     if (configuration?.version !== 1 || !getGarment(configuration.garment?.type)?.enabled || !Array.isArray(configuration.designs)) {
       throw new Error('La versión o prenda de la personalización no es compatible.');
@@ -506,6 +509,7 @@ const Customizer3D = (() => {
       state.designs.splice(0, state.designs.length, ...JSON.parse(JSON.stringify(configuration.designs)));
       setColor(state.garmentColorHex);
       const failedAssets = await designManager.restoreAll(garmentMeshes);
+      if (strict && failedAssets.length) throw new Error('No se pudieron restaurar todas las capas. Volvé a intentar antes de guardar.');
       applyHoodState(state.hoodState);
       document.dispatchEvent(new CustomEvent('gymculture:customization-loaded', { detail: configuration }));
       setStatus(failedAssets.length ? `Se restauraron ${state.designs.length - failedAssets.length} de ${state.designs.length} diseños. Revisá los que no pudieron cargarse.` : '');
@@ -674,6 +678,13 @@ const Customizer3D = (() => {
 
   return {
     init, dispose, setColor, prepareImage, prepareText,
+    getSelectedDesign: () => designManager?.selected(),
+    getLayers: () => designManager?.designs.map(design => ({ id: design.id, type: design.type, label: design.text || design.source?.name || 'Imagen', visibility: design.visibility !== false, layerOrder: design.layerOrder })) || [],
+    selectDesign: id => { activateEditor(); if (!busy && !editLocked) designManager?.select(id); },
+    transformSelected: action => { activateEditor(); if (!busy && !editLocked && !designManager?.processing) return transformSelection(designManager, garmentMeshes, action); },
+    changeLayer: (id, action) => { activateEditor(); if (!busy && !editLocked && !designManager?.processing) changeLayer(designManager, id, action); },
+    canEdit: () => Boolean(garment && designManager && !busy && !editLocked && !designManager.processing),
+    setEditLock: value => { editLocked = value; if (controls) controls.enabled = !value && !busy; },
     updateSelectedDesign, removeSelectedDesign, rearmSelectedDesign,
     removeBackground: () => designManager?.removeBackground(),
     applyBackgroundRemoval: () => designManager?.applyBackgroundRemoval(),
@@ -691,4 +702,5 @@ const Customizer3D = (() => {
 })();
 
 window.GymCulture3D = Customizer3D;
+document.addEventListener('gymculture:editor-saving', event => Customizer3D.setEditLock(event.detail));
 Customizer3D.init();
